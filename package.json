@@ -1,0 +1,15 @@
+{
+  "name": "agridrone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgriDrone monorepo workspace",
+  "scripts": {
+    "dev": "npm --prefix mobile run dev",
+    "dev:mobile": "npm --prefix mobile run dev",
+    "dev:server": "npm --prefix server run dev",
+    "start": "npm --prefix mobile start",
+    "lint:mobile": "npm --prefix mobile run lint",
+    "typecheck:mobile": "npm --prefix mobile run typecheck"
+  }
+}
+

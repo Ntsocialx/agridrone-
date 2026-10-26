@@ -14,6 +14,7 @@ the reviewed Figma prototype.
 
 ```powershell
 npm ci
+npm run dev
 npm run start
 npm run lint
 npm run typecheck
