@@ -11,11 +11,12 @@ import { adminRouter, operatorsRouter } from "./routes/operators";
 import { reviewsAdminRouter, reviewsRouter } from "./routes/reviews";
 import { systemRouter } from "./routes/system";
 import { licenceAdminRouter, uploadsRouter } from "./routes/uploads";
+import type { Mailer } from "./mailer";
 import type { Storage } from "./storage";
 
-export type AppDeps = { db: Db; storage: Storage; jwtSecret: string; authRateLimit?: number };
+export type AppDeps = { db: Db; storage: Storage; mailer?: Mailer | null; jwtSecret: string; authRateLimit?: number };
 
-export function createApp({ db, storage, jwtSecret, authRateLimit }: AppDeps) {
+export function createApp({ db, storage, mailer = null, jwtSecret, authRateLimit }: AppDeps) {
   const app = express();
 
   app.disable("x-powered-by");
@@ -33,7 +34,7 @@ export function createApp({ db, storage, jwtSecret, authRateLimit }: AppDeps) {
 
   const authed = requireAuth(db, jwtSecret);
   app.use("/api/v1", systemRouter(db));
-  app.use("/api/v1/auth", authRouter(db, jwtSecret, authRateLimit));
+  app.use("/api/v1/auth", authRouter(db, jwtSecret, mailer, authRateLimit));
   app.use("/api/v1/jobs", authed, jobsRouter(db));
   app.use("/api/v1/operators", authed, operatorsRouter(db));
   app.use("/api/v1/operators", authed, uploadsRouter(db, storage));

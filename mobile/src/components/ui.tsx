@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,37 @@ export function Field({ label, error, ...input }: TextInputProps & { label: stri
         textAlignVertical={input.multiline ? "top" : undefined}
         {...input}
       />
+      {error ? <Text className="text-danger text-xs mt-1 ml-1">{error}</Text> : null}
+    </View>
+  );
+}
+
+/** Password input with a Show/Hide toggle so people can check what they typed. */
+export function PasswordField({ label, error, dark, ...input }: Omit<TextInputProps, "secureTextEntry"> & { label: string; error?: string; dark?: boolean }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View>
+      <Text className={`text-xs mb-1 ml-1 ${dark ? "text-paper/80" : "text-muted"}`}>{label}</Text>
+      <View className={`flex-row items-center bg-cream border rounded-md ${error ? "border-danger" : "border-muted/20"}`}>
+        <TextInput
+          placeholderTextColor="#64706a99"
+          className="flex-1 p-4 text-forest-950 text-base"
+          accessibilityLabel={label}
+          secureTextEntry={!visible}
+          autoCapitalize="none"
+          autoCorrect={false}
+          {...input}
+        />
+        <Pressable
+          onPress={() => setVisible((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+          className="px-4 py-4"
+          hitSlop={8}
+        >
+          <Text className="text-forest-700 font-bold text-sm">{visible ? "Hide" : "Show"}</Text>
+        </Pressable>
+      </View>
       {error ? <Text className="text-danger text-xs mt-1 ml-1">{error}</Text> : null}
     </View>
   );

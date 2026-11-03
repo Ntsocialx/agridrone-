@@ -1,16 +1,26 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from "react-native";
 import { router } from "expo-router";
-import { BackHeader, Button, Field } from "../components/ui";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
 import { homeFor, useSession } from "../lib/session";
 
+// "A drone flying over a field of wheat" by Elisa Photography, Unsplash License.
+const BACKGROUND = "https://images.unsplash.com/photo-1657093114835-031e7cf9520c?auto=format&fit=crop&w=1200&q=80";
+
+type Mode = "member" | "admin";
+
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { signIn } = useSession();
+  const [mode, setMode] = useState<Mode>("member");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isAdmin = mode === "admin";
 
   const onSignIn = async () => {
     if (!email.trim() || !password) return setError("Enter your email and password.");
@@ -18,6 +28,11 @@ export default function LoginScreen() {
     setError(null);
     try {
       const { token, user } = await api<{ token: string; user: User }>("/auth/login", { body: { email: email.trim(), password } });
+      // Admin mode is a convenience, not security: the server checks the role on every admin request.
+      if (isAdmin && user.role !== "admin") {
+        setError("This account isn't an admin. Switch to Member to sign in.");
+        return;
+      }
       await signIn(token, user);
       router.replace(homeFor(user.role));
     } catch (e) {
@@ -28,27 +43,85 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <BackHeader title="Welcome back" subtitle="Sign in to your AgriDrone account" />
-      <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
-        <View className="gap-y-4 mb-4">
-          <Field label="Email address" placeholder="email@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-          <Field label="Password" placeholder="Your password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" onSubmitEditing={onSignIn} />
-        </View>
-        {error ? (
-          <View className="bg-danger/10 border border-danger/30 p-3 rounded-md mb-4">
-            <Text className="text-danger text-sm">{error}</Text>
+    <View className="flex-1 bg-forest-950">
+      <StatusBar style="light" />
+      <ImageBackground source={{ uri: BACKGROUND }} resizeMode="cover" className="absolute inset-0" />
+      <View className="absolute inset-0 bg-forest-950/60" />
+
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }} keyboardShouldPersistTaps="handled">
+          <View className="px-6" style={{ paddingTop: insets.top + 12 }}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              className="self-start py-1 mb-10"
+            >
+              <Text className="text-lime font-bold">← Back</Text>
+            </Pressable>
+            <Text className="text-lime text-xs font-bold tracking-widest uppercase mb-2">
+              {isAdmin ? "AgriDrone admin console" : "Drone Services, Simplified"}
+            </Text>
+            <Text className="text-white text-4xl font-bold leading-tight">{isAdmin ? "Admin\nsign-in" : "Welcome\nback"}</Text>
           </View>
-        ) : null}
-        <View className="mt-4">
-          <Button label="Sign in" onPress={onSignIn} busy={busy} />
-        </View>
-        <Pressable className="py-6 items-center" onPress={() => router.replace("/register")} accessibilityRole="button">
-          <Text className="text-muted text-sm">
-            New to AgriDrone? <Text className="text-forest-700 font-bold">Create an account</Text>
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <View className="bg-paper rounded-t-lg px-6 pt-6 mt-10" style={{ paddingBottom: insets.bottom + 24 }}>
+            <View className="flex-row bg-cream rounded-full p-1 mb-6" accessibilityRole="tablist">
+              {(["member", "admin"] as const).map((m) => (
+                <Pressable
+                  key={m}
+                  onPress={() => {
+                    setMode(m);
+                    setError(null);
+                  }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: mode === m }}
+                  className={`flex-1 py-2 rounded-full items-center ${mode === m ? "bg-forest-900" : ""}`}
+                >
+                  <Text className={`font-bold text-sm ${mode === m ? "text-lime" : "text-muted"}`}>
+                    {m === "member" ? "Pilot or farm owner" : "Admin"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {isAdmin ? (
+              <Text className="text-muted text-sm mb-4">
+                For AgriDrone staff. Admin accounts are created by the system owner and can&apos;t be signed up for.
+              </Text>
+            ) : null}
+
+            <View className="gap-y-4">
+              <Field label="Email address" placeholder="email@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+              <PasswordField label="Password" placeholder="Your password" value={password} onChangeText={setPassword} autoComplete="current-password" onSubmitEditing={onSignIn} />
+            </View>
+
+            <Pressable
+              onPress={() => router.push({ pathname: "/forgot-password", params: { email: email.trim() } })}
+              accessibilityRole="button"
+              className="self-end py-3"
+            >
+              <Text className="text-forest-700 font-bold text-sm">Forgot password?</Text>
+            </Pressable>
+
+            {error ? (
+              <View className="bg-danger/10 border border-danger/30 p-3 rounded-md mb-4">
+                <Text className="text-danger text-sm">{error}</Text>
+              </View>
+            ) : null}
+
+            <Button label={isAdmin ? "Sign in to admin console" : "Sign in"} variant={isAdmin ? "dark" : "primary"} onPress={onSignIn} busy={busy} />
+
+            {!isAdmin ? (
+              <Pressable className="pt-5 items-center" onPress={() => router.replace("/register")} accessibilityRole="button">
+                <Text className="text-muted text-sm">
+                  New to AgriDrone? <Text className="text-forest-700 font-bold">Create an account</Text>
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

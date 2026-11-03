@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Text, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
-import { BackHeader, Button, Checkbox, Field } from "../components/ui";
+import { BackHeader, Button, Checkbox, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
 import { useSession } from "../lib/session";
 
@@ -16,7 +16,7 @@ export default function RegisterScreen() {
   const [role, setRole] = useState<Role>("operator");
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", password: "", confirm: "" });
   // Consent must be a deliberate action, so it starts unchecked.
   const [accepted, setAccepted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -26,6 +26,7 @@ export default function RegisterScreen() {
     phone: /^\+?\d[\d ]{8,14}$/.test(form.phone.trim()) ? undefined : "Enter a valid mobile number",
     email: /^\S+@\S+\.\S+$/.test(form.email.trim()) ? undefined : "Enter a valid email address",
     password: form.password.length < 8 ? "At least 8 characters" : undefined,
+    confirm: form.confirm !== form.password ? "Passwords don't match" : undefined,
   };
   const valid = Object.values(errors).every((e) => !e) && accepted;
   const show = (key: keyof typeof errors) => (submitted ? errors[key] : undefined);
@@ -76,7 +77,17 @@ export default function RegisterScreen() {
           <Field label="Full name" placeholder="Enter your full name" value={form.name} onChangeText={set("name")} error={show("name")} autoComplete="name" />
           <Field label="Mobile number" placeholder="+27 ..." value={form.phone} onChangeText={set("phone")} error={show("phone")} keyboardType="phone-pad" autoComplete="tel" />
           <Field label="Email address" placeholder="email@example.com" value={form.email} onChangeText={set("email")} error={show("email")} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-          <Field label="Password" placeholder="At least 8 characters" value={form.password} onChangeText={set("password")} error={show("password")} secureTextEntry autoComplete="new-password" />
+          <PasswordField label="Password" placeholder="At least 8 characters" value={form.password} onChangeText={set("password")} error={show("password")} autoComplete="new-password" />
+          <PasswordField
+            label="Confirm password"
+            placeholder="Type it again"
+            value={form.confirm}
+            onChangeText={set("confirm")}
+            // Show the mismatch as soon as they've typed enough to compare, not only on submit.
+            error={submitted || form.confirm.length >= form.password.length ? errors.confirm : undefined}
+            autoComplete="new-password"
+          />
+          {!errors.confirm && form.confirm ? <Text className="text-forest-700 text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
         </View>
 
         <Checkbox checked={accepted} onChange={setAccepted}>

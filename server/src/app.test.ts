@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { hashPassword } from "./auth";
 import type { Db } from "./db";
+import type { Mailer } from "./mailer";
 import type { Storage, StoredFile } from "./storage";
 import { createTestDb } from "./test-db";
 
@@ -13,6 +14,13 @@ let app: ReturnType<typeof createApp>;
 // Fake Cloudinary: signing an upload simulates the phone uploading a valid file.
 const files = new Map<string, StoredFile>();
 const removed: string[] = [];
+// Fake mailer: remembers the last code sent to each address.
+const sentCodes = new Map<string, string>();
+const mailer: Mailer = {
+  sendResetCode: async (to, code) => {
+    sentCodes.set(to.email, code);
+  },
+};
 const storage: Storage = {
   signUpload: ({ publicId, type }) => {
     files.set(publicId, { format: type === "authenticated" ? "pdf" : "jpg", bytes: 1000, secureUrl: `https://cdn.test/${publicId}.jpg` });
@@ -28,7 +36,7 @@ const storage: Storage = {
 
 beforeAll(async () => {
   db = await createTestDb();
-  app = createApp({ db, storage, jwtSecret: JWT_SECRET, authRateLimit: 1000 });
+  app = createApp({ db, storage, mailer, jwtSecret: JWT_SECRET, authRateLimit: 1000 });
 });
 afterAll(() => db.close());
 
@@ -381,5 +389,69 @@ describe("uploads", () => {
     const del = await request(app).delete(`/api/v1/operators/me/portfolio/${photo.body.id}`).set("Authorization", `Bearer ${operator.token}`);
     expect(del.status).toBe(204);
     expect(removed).toContain(signed.body.fields.public_id);
+  });
+});
+
+describe("password reset", () => {
+  async function account() {
+    const email = `reset${++n}@example.test`;
+    const res = await request(app)
+      .post("/api/v1/auth/register")
+      .send({ email, password: "old-password-1", fullName: "Reset Tester", phone: "+27 00 000 0000", role: "farm_owner", acceptTerms: true });
+    return { email, id: res.body.user.id as string };
+  }
+  const forgot = (email: string) => request(app).post("/api/v1/auth/password/forgot").send({ email });
+  const reset = (email: string, code: string, newPassword = "new-password-1") =>
+    request(app).post("/api/v1/auth/password/reset").send({ email, code, newPassword });
+
+  it("emails a code, resets once, signs in, and retires the old password", async () => {
+    const { email } = await account();
+    const res = await forgot(email.toUpperCase());
+    expect(res.status).toBe(200);
+    const code = sentCodes.get(email)!;
+    expect(code).toMatch(/^\d{6}$/);
+
+    const ok = await reset(email, code);
+    expect(ok.status).toBe(200);
+    expect(ok.body.token).toBeTruthy();
+    expect((await reset(email, code)).status).toBe(400);
+
+    expect((await request(app).post("/api/v1/auth/login").send({ email, password: "old-password-1" })).status).toBe(401);
+    expect((await request(app).post("/api/v1/auth/login").send({ email, password: "new-password-1" })).status).toBe(200);
+  });
+
+  it("answers identically for unknown emails and sends nothing", async () => {
+    const known = await account();
+    const a = await forgot(known.email);
+    const b = await forgot("nobody-here@example.test");
+    expect(b.status).toBe(a.status);
+    expect(b.body).toEqual(a.body);
+    expect(sentCodes.has("nobody-here@example.test")).toBe(false);
+  });
+
+  it("locks the code after 5 wrong tries", async () => {
+    const { email } = await account();
+    await forgot(email);
+    const code = sentCodes.get(email)!;
+    const wrong = code === "000000" ? "111111" : "000000";
+    for (let i = 0; i < 5; i++) expect((await reset(email, wrong)).status).toBe(400);
+    expect((await reset(email, code)).status).toBe(400);
+  });
+
+  it("rejects expired codes and only accepts the newest code", async () => {
+    const { email, id } = await account();
+    await forgot(email);
+    const first = sentCodes.get(email)!;
+    await forgot(email);
+    const second = sentCodes.get(email)!;
+    if (first !== second) expect((await reset(email, first)).status).toBe(400);
+
+    await db.query("UPDATE password_resets SET expires_at = now() - interval '1 minute' WHERE user_id = $1", [id]);
+    expect((await reset(email, second)).status).toBe(400);
+  });
+
+  it("is switched off cleanly when email isn't configured", async () => {
+    const noMail = createApp({ db, storage, jwtSecret: JWT_SECRET, authRateLimit: 1000 });
+    expect((await request(noMail).post("/api/v1/auth/password/forgot").send({ email: "x@example.test" })).status).toBe(503);
   });
 });

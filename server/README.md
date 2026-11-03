@@ -53,6 +53,8 @@ Errors are `{ "error": { "code", "message" } }`.
 | GET | `/health`, `/ready` | anyone | `ready` checks the database |
 | POST | `/auth/register` | anyone | `role`: `operator` or `farm_owner`; `acceptTerms: true` required |
 | POST | `/auth/login` | anyone | rate-limited; generic error |
+| POST | `/auth/password/forgot` | anyone | `{ email }`; same reply whether or not the account exists; 503 without Brevo |
+| POST | `/auth/password/reset` | anyone | `{ email, code, newPassword }`; 15-min code, single use, locks after 5 tries; returns a session |
 | GET/PUT | `/operators/me` | operator | locked while in review/approved |
 | POST | `/operators/me/submit` | operator | → `in_review` |
 | GET | `/admin/operators?status=` | admin | |

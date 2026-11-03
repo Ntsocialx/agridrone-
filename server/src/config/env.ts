@@ -12,6 +12,10 @@ const environmentSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   CLOUDINARY_API_KEY: z.string().min(1).optional(),
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  // Optional: without these, password reset is switched off (503).
+  BREVO_API_KEY: z.string().min(1).optional(),
+  MAIL_FROM_EMAIL: z.email().optional(),
+  MAIL_FROM_NAME: z.string().min(1).default("AgriDrone"),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);
