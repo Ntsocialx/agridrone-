@@ -110,10 +110,42 @@ export const session = {
   },
 };
 
+// Requests still running after SLOW_MS (e.g. the free Render server waking up)
+// switch on the full-screen loading animation.
+const SLOW_MS = 2500;
+let slowCount = 0;
+const slowListeners = new Set<(slow: boolean) => void>();
+
+export function subscribeSlow(listener: (slow: boolean) => void) {
+  slowListeners.add(listener);
+  return () => {
+    slowListeners.delete(listener);
+  };
+}
+
+async function trackSlow<T>(request: Promise<T>): Promise<T> {
+  let slow = false;
+  const timer = setTimeout(() => {
+    slow = true;
+    if (++slowCount === 1) slowListeners.forEach((l) => l(true));
+  }, SLOW_MS);
+  try {
+    return await request;
+  } finally {
+    clearTimeout(timer);
+    if (slow && --slowCount === 0) slowListeners.forEach((l) => l(false));
+  }
+}
+
+/** Fire-and-forget ping so the free server starts waking while the user reads Welcome. */
+export function wakeServer() {
+  fetch(API_URL + "/health").catch(() => {});
+}
+
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(API_URL + path, {
+    response = await trackSlow(fetch(API_URL + path, {
       method: options.method ?? (options.body ? "POST" : "GET"),
       headers: {
         Accept: "application/json",
@@ -121,7 +153,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+    }));
   } catch {
     throw new ApiError("Can't reach AgriDrone. Check your connection and try again.", 0);
   }
@@ -151,11 +183,15 @@ export async function uploadFile(kind: "licence" | "portfolio", file: PickedFile
 
   let response: Response;
   try {
-    response = await fetch(uploadUrl, { method: "POST", body: form });
+    response = await trackSlow(fetch(uploadUrl, { method: "POST", body: form }));
   } catch {
     throw new ApiError("Upload failed. Check your connection and try again.", 0);
   }
-  if (!response.ok) throw new ApiError("Upload was rejected. Use a PDF, JPG or PNG under 5 MB.", response.status);
+  if (!response.ok) {
+    // Cloudinary explains rejections (e.g. "Image file format heic not allowed").
+    const reason = (await response.json().catch(() => null))?.error?.message;
+    throw new ApiError(`Upload was rejected${reason ? `: ${reason}` : ""}. Use a PDF, JPG or PNG under 5 MB.`, response.status);
+  }
   return String(fields.public_id);
 }
 

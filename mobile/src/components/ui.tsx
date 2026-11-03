@@ -3,6 +3,7 @@ import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
 import { useSession } from "../lib/session";
+import { DroneSpinner } from "./DroneLoader";
 
 export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: string }) {
   return (
@@ -147,11 +148,7 @@ export function Stars({ value, size = 16, onChange }: { value: number; size?: nu
 }
 
 export function Loading() {
-  return (
-    <View className="py-16 items-center">
-      <ActivityIndicator color="#1d5c45" size="large" />
-    </View>
-  );
+  return <DroneSpinner />;
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {

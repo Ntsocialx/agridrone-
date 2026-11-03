@@ -1,7 +1,10 @@
 import "../../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SlowOverlay } from "../components/DroneLoader";
+import { wakeServer } from "../lib/api";
 import { SessionProvider, useSession } from "../lib/session";
 
 function RootStack() {
@@ -30,12 +33,18 @@ function RootStack() {
   );
 }
 
+// Start waking the free Render server as soon as the app opens.
+wakeServer();
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SessionProvider>
         <StatusBar style="auto" />
-        <RootStack />
+        <View style={{ flex: 1 }}>
+          <RootStack />
+          <SlowOverlay />
+        </View>
       </SessionProvider>
     </SafeAreaProvider>
   );

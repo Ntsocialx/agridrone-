@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading } from "../components/ui";
-import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PilotProfile, type Service } from "../lib/api";
+import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PickedFile, type PilotProfile, type Service } from "../lib/api";
 import { useApi, useUser } from "../lib/session";
 
 const STATUS_COPY = {
@@ -15,6 +15,30 @@ const STATUS_COPY = {
 };
 
 const message = (e: unknown) => (e instanceof ApiError ? e.message : "Something went wrong.");
+const MAX_BYTES = 5 * 1024 * 1024;
+const tooBig = () => new ApiError("That file is over 5 MB. Choose a smaller one.", 400);
+
+async function pickPhoto(): Promise<PickedFile | null> {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    quality: 0.8,
+    // iPhones store photos as HEIC; "compatible" makes iOS hand us a JPEG instead.
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+  });
+  if (result.canceled) return null;
+  const photo = result.assets[0];
+  if (photo.fileSize && photo.fileSize > MAX_BYTES) throw tooBig();
+  const mimeType = photo.mimeType === "image/png" ? "image/png" : "image/jpeg";
+  return { uri: photo.uri, name: mimeType === "image/png" ? "photo.png" : "photo.jpg", mimeType };
+}
+
+async function pickPdf(): Promise<PickedFile | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
+  if (result.canceled) return null;
+  const file = result.assets[0];
+  if (file.size && file.size > MAX_BYTES) throw tooBig();
+  return { uri: file.uri, name: file.name, mimeType: "application/pdf" };
+}
 
 export default function OperatorProfileScreen() {
   const profile = useApi<OperatorProfile>("/operators/me");
@@ -62,24 +86,29 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     }
   };
 
-  const pickLicence = () =>
+  const uploadLicence = (pick: () => Promise<PickedFile | null>) =>
     run("licence", async () => {
-      const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"], copyToCacheDirectory: true });
-      if (result.canceled) return;
-      const file = result.assets[0];
-      if (file.size && file.size > 5 * 1024 * 1024) throw new ApiError("That file is over 5 MB. Choose a smaller one.", 400);
+      const file = await pick();
+      if (!file) return;
       await api("/operators/me/licence/consent", { body: { accept: true } });
-      const publicId = await uploadFile("licence", { uri: file.uri, name: file.name, mimeType: file.mimeType ?? "application/pdf" });
+      const publicId = await uploadFile("licence", file);
       await api("/operators/me/licence", { body: { publicId } });
       await reload();
     });
 
+  // Most people keep a licence photo in their camera roll, not in Files.
+  const pickLicence = () =>
+    Alert.alert("Upload your licence", "Choose a photo of it, or a PDF copy.", [
+      { text: "Photo from library", onPress: () => uploadLicence(pickPhoto) },
+      { text: "PDF file", onPress: () => uploadLicence(pickPdf) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+
   const addPhoto = () =>
     run("photo", async () => {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-      if (result.canceled) return;
-      const photo = result.assets[0];
-      const publicId = await uploadFile("portfolio", { uri: photo.uri, name: photo.fileName ?? "photo.jpg", mimeType: photo.mimeType ?? "image/jpeg" });
+      const photo = await pickPhoto();
+      if (!photo) return;
+      const publicId = await uploadFile("portfolio", photo);
       await api("/operators/me/portfolio", { body: { publicId, caption: "" } });
       await pilot.reload();
     });
