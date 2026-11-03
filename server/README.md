@@ -29,6 +29,17 @@ npm run create-admin
 Remove-Item Env:ADMIN_PASSWORD
 ```
 
+Check your Cloudinary keys with a live private upload/download/delete round-trip:
+
+```powershell
+npm run check:cloudinary
+```
+
+Uploads go straight from the phone to Cloudinary using a server-signed request;
+the API secret never leaves the server. Licences are `authenticated` (no public
+URL, max 5 MB, pdf/jpg/png) and need separate consent. Portfolio photos are
+public (jpg/png/webp).
+
 Migrations are plain SQL in `migrations/`, applied in name order and tracked in
 `schema_migrations`. Never edit an applied file; add a new one.
 
@@ -58,6 +69,12 @@ Errors are `{ "error": { "code", "message" } }`.
 | POST | `/reviews` | job's owner | `{ jobId, rating 1–5, comment }`; completed jobs only; one per job |
 | POST | `/reviews/:id/report` | reviewed operator | `{ reason }`; once per review |
 | GET | `/pilots/:id` | signed in | completed jobs, average rating, visible reviews |
+| POST | `/operators/me/licence/consent` | operator | `{ accept: true }`; recorded with version |
+| POST | `/operators/me/:kind/upload-signature` | operator | `kind`: `licence` (needs consent) or `portfolio` |
+| POST | `/operators/me/licence` | operator | `{ publicId }`; verified, replaces old licence |
+| POST | `/operators/me/portfolio` | operator | `{ publicId, caption }` |
+| DELETE | `/operators/me/portfolio/:id` | operator | also deletes from Cloudinary |
+| GET | `/admin/operators/:id/licence` | admin | 5-minute private link; audited |
 | GET | `/admin/reviews/reports` | admin | open reports |
 | POST | `/admin/reviews/:id/moderation` | admin | `{ action: "hide" \| "keep" }`; audited |
 

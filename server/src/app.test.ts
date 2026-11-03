@@ -3,15 +3,32 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { hashPassword } from "./auth";
 import type { Db } from "./db";
+import type { Storage, StoredFile } from "./storage";
 import { createTestDb } from "./test-db";
 
 const JWT_SECRET = "test-secret-that-is-at-least-32-characters-long";
 let db: Db;
 let app: ReturnType<typeof createApp>;
 
+// Fake Cloudinary: signing an upload simulates the phone uploading a valid file.
+const files = new Map<string, StoredFile>();
+const removed: string[] = [];
+const storage: Storage = {
+  signUpload: ({ publicId, type }) => {
+    files.set(publicId, { format: type === "authenticated" ? "pdf" : "jpg", bytes: 1000, secureUrl: `https://cdn.test/${publicId}.jpg` });
+    return { uploadUrl: "https://upload.test", fields: { public_id: publicId, signature: "sig" } };
+  },
+  find: async (publicId) => files.get(publicId) ?? null,
+  remove: async (publicId) => {
+    files.delete(publicId);
+    removed.push(publicId);
+  },
+  privateUrl: (publicId, _format, expiresAt) => `https://private.test/${publicId}?expires=${expiresAt}`,
+};
+
 beforeAll(async () => {
   db = await createTestDb();
-  app = createApp({ db, jwtSecret: JWT_SECRET, authRateLimit: 1000 });
+  app = createApp({ db, storage, jwtSecret: JWT_SECRET, authRateLimit: 1000 });
 });
 afterAll(() => db.close());
 
@@ -51,9 +68,16 @@ const JOB = {
 };
 const BID = { amountZar: 4200, days: 3, message: "Can fly early next week." };
 
+async function attachLicence(token: string) {
+  await as(token).post("/api/v1/operators/me/licence/consent", { accept: true });
+  const signed = await as(token).post("/api/v1/operators/me/licence/upload-signature");
+  return as(token).post("/api/v1/operators/me/licence", { publicId: signed.body.fields.public_id });
+}
+
 async function approvedOperator(adminToken: string) {
   const operator = await register("operator");
   await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
+  await attachLicence(operator.token);
   await as(operator.token).post("/api/v1/operators/me/submit");
   await as(adminToken).post(`/api/v1/admin/operators/${operator.id}/decision`, { decision: "approved" });
   return operator;
@@ -112,12 +136,14 @@ describe("auth", () => {
 });
 
 describe("operator verification", () => {
-  it("blocks submit until the profile is complete, then locks it in review", async () => {
+  it("blocks submit until the profile and licence are complete, then locks it in review", async () => {
     const operator = await register("operator");
     expect((await as(operator.token).post("/api/v1/operators/me/submit")).status).toBe(409);
 
     const put = await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
     expect(put.status).toBe(200);
+    expect((await as(operator.token).post("/api/v1/operators/me/submit")).status).toBe(409);
+    expect((await attachLicence(operator.token)).status).toBe(201);
     expect((await as(operator.token).post("/api/v1/operators/me/submit")).body.verificationStatus).toBe("in_review");
     expect((await as(operator.token).put("/api/v1/operators/me", { base: "Elsewhere", radiusKm: 10, services: ["Mapping"] })).status).toBe(409);
   });
@@ -132,6 +158,7 @@ describe("operator verification", () => {
     const admin = await createAdmin();
     const operator = await register("operator");
     await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
+    await attachLicence(operator.token);
     await as(operator.token).post("/api/v1/operators/me/submit");
 
     expect((await as(operator.token).post(`/api/v1/admin/operators/${operator.id}/decision`, { decision: "approved" })).status).toBe(403);
@@ -276,5 +303,82 @@ describe("ratings and reviews", () => {
     expect(profile.body).toMatchObject({ reviewCount: 0, averageRating: null, completedJobs: 1 });
     const { rows } = await db.query("SELECT 1 FROM audit_log WHERE target_id = $1 AND action = 'review_hidden'", [review.body.id]);
     expect(rows).toHaveLength(1);
+  });
+});
+
+describe("uploads", () => {
+  it("requires separate consent before signing a licence upload, and records it", async () => {
+    const operator = await register("operator");
+    expect((await as(operator.token).post("/api/v1/operators/me/licence/upload-signature")).status).toBe(403);
+    expect((await as(operator.token).post("/api/v1/operators/me/licence/consent", { accept: false })).status).toBe(400);
+    expect((await as(operator.token).post("/api/v1/operators/me/licence/consent", { accept: true })).status).toBe(201);
+
+    const signed = await as(operator.token).post("/api/v1/operators/me/licence/upload-signature");
+    expect(signed.status).toBe(200);
+    expect(signed.body.fields.public_id).toMatch(new RegExp(`^agridrone/licences/${operator.id}/`));
+    const { rows } = await db.query("SELECT 1 FROM consents WHERE user_id = $1 AND kind = 'licence_upload'", [operator.id]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("refuses to attach someone else's file or a file that was never uploaded", async () => {
+    const victim = await register("operator");
+    const attacker = await register("operator");
+    await as(victim.token).post("/api/v1/operators/me/licence/consent", { accept: true });
+    const signed = await as(victim.token).post("/api/v1/operators/me/licence/upload-signature");
+
+    expect((await as(attacker.token).post("/api/v1/operators/me/licence", { publicId: signed.body.fields.public_id })).status).toBe(403);
+    expect((await as(victim.token).post("/api/v1/operators/me/licence", { publicId: `agridrone/licences/${victim.id}/missing` })).status).toBe(404);
+  });
+
+  it("deletes oversized files instead of attaching them", async () => {
+    const operator = await register("operator");
+    await as(operator.token).post("/api/v1/operators/me/licence/consent", { accept: true });
+    const signed = await as(operator.token).post("/api/v1/operators/me/licence/upload-signature");
+    const publicId: string = signed.body.fields.public_id;
+    files.set(publicId, { format: "pdf", bytes: 6 * 1024 * 1024, secureUrl: "" });
+
+    expect((await as(operator.token).post("/api/v1/operators/me/licence", { publicId })).status).toBe(400);
+    expect(removed).toContain(publicId);
+  });
+
+  it("replaces the old licence on re-upload and never exposes its id", async () => {
+    const operator = await register("operator");
+    const first = await attachLicence(operator.token);
+    expect(first.body).toEqual({ attached: true, format: "pdf", bytes: 1000 });
+    const { rows: before } = await db.query<{ publicId: string }>(`SELECT public_id AS "publicId" FROM uploads WHERE user_id = $1`, [operator.id]);
+
+    await attachLicence(operator.token);
+    expect(removed).toContain(before[0].publicId);
+    const { rows: after } = await db.query("SELECT 1 FROM uploads WHERE user_id = $1 AND kind = 'licence'", [operator.id]);
+    expect(after).toHaveLength(1);
+  });
+
+  it("gives only admins a short-lived licence link, and audits the view", async () => {
+    const admin = await createAdmin();
+    const operator = await register("operator");
+    await attachLicence(operator.token);
+
+    expect((await as(operator.token).get(`/api/v1/admin/operators/${operator.id}/licence`)).status).toBe(403);
+    const link = await as(admin).get(`/api/v1/admin/operators/${operator.id}/licence`);
+    expect(link.status).toBe(200);
+    expect(link.headers["cache-control"]).toBe("no-store");
+    expect(link.body.expiresAt - Date.now() / 1000).toBeLessThanOrEqual(300);
+    const { rows } = await db.query("SELECT 1 FROM audit_log WHERE target_id = $1 AND action = 'licence_viewed'", [operator.id]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("adds portfolio photos to the public pilot profile and deletes them from Cloudinary", async () => {
+    const operator = await register("operator");
+    const owner = await register("farm_owner");
+    const signed = await as(operator.token).post("/api/v1/operators/me/portfolio/upload-signature");
+    const photo = await as(operator.token).post("/api/v1/operators/me/portfolio", { publicId: signed.body.fields.public_id, caption: "NDVI map" });
+    expect(photo.status).toBe(201);
+
+    const profile = await as(owner.token).get(`/api/v1/pilots/${operator.id}`);
+    expect(profile.body.portfolio).toEqual([expect.objectContaining({ caption: "NDVI map", url: expect.stringContaining("https://") })]);
+
+    const del = await request(app).delete(`/api/v1/operators/me/portfolio/${photo.body.id}`).set("Authorization", `Bearer ${operator.token}`);
+    expect(del.status).toBe(204);
+    expect(removed).toContain(signed.body.fields.public_id);
   });
 });

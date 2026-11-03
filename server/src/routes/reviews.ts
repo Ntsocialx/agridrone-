@@ -76,7 +76,7 @@ export function reviewsRouter(db: Db) {
     );
     if (!pilots[0]) throw notFound("Pilot");
 
-    const [{ rows: completed }, { rows: reviews }] = await Promise.all([
+    const [{ rows: completed }, { rows: reviews }, { rows: portfolio }] = await Promise.all([
       db.query(
         `SELECT id, title, service, area_ha::float8 AS "areaHa", completed_at AS "completedAt"
          FROM jobs WHERE assigned_operator_id = $1 AND status = 'completed'
@@ -88,8 +88,13 @@ export function reviewsRouter(db: Db) {
          WHERE r.operator_id = $1 AND NOT r.hidden ORDER BY r.created_at DESC LIMIT 50`,
         [pilotId],
       ),
+      db.query(
+        `SELECT id, url, caption, created_at AS "createdAt" FROM uploads
+         WHERE user_id = $1 AND kind = 'portfolio' ORDER BY created_at DESC LIMIT 50`,
+        [pilotId],
+      ),
     ]);
-    response.json({ ...pilots[0], completed, reviews });
+    response.json({ ...pilots[0], completed, reviews, portfolio });
   });
 
   return router;

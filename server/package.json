@@ -13,10 +13,12 @@
     "lint": "eslint src",
     "test": "vitest run",
     "db:migrate": "tsx src/scripts/migrate.ts",
-    "create-admin": "tsx src/scripts/create-admin.ts"
+    "create-admin": "tsx src/scripts/create-admin.ts",
+    "check:cloudinary": "tsx src/scripts/check-cloudinary.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.3.0",

@@ -21,7 +21,11 @@ export function operatorsRouter(db: Db) {
   router.use(requireRole("operator"));
 
   router.get("/me", async (request, response) => {
-    const { rows } = await db.query(`SELECT ${PROFILE_FIELDS} FROM operator_profiles p WHERE p.user_id = $1`, [
+    const { rows } = await db.query(
+      `SELECT ${PROFILE_FIELDS},
+         EXISTS (SELECT 1 FROM uploads u WHERE u.user_id = p.user_id AND u.kind = 'licence') AS "licenceAttached"
+       FROM operator_profiles p WHERE p.user_id = $1`,
+      [
       currentUser(request).id,
     ]);
     if (!rows[0]) throw notFound("Profile");
@@ -41,17 +45,17 @@ export function operatorsRouter(db: Db) {
     response.json(rows[0]);
   });
 
-  // TODO(phase 5): also require an uploaded licence + licence_upload consent.
   router.post("/me/submit", async (request, response) => {
     const { rows } = await db.query(
       `UPDATE operator_profiles p SET verification_status = 'in_review', rejection_reason = NULL,
          submitted_at = now(), updated_at = now()
        WHERE p.user_id = $1 AND p.verification_status IN ('not_submitted', 'rejected')
          AND p.base <> '' AND cardinality(p.services) > 0
+         AND EXISTS (SELECT 1 FROM uploads u WHERE u.user_id = p.user_id AND u.kind = 'licence')
        RETURNING ${PROFILE_FIELDS}`,
       [currentUser(request).id],
     );
-    if (!rows[0]) throw conflict("Complete your profile first, or wait for the current review.");
+    if (!rows[0]) throw conflict("Complete your profile and upload your licence first, or wait for the current review.");
     response.json(rows[0]);
   });
 

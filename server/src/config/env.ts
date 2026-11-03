@@ -9,6 +9,9 @@ const environmentSchema = z.object({
   // Optional here so tests can import config; index.ts and scripts require them.
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32).optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+  CLOUDINARY_API_KEY: z.string().min(1).optional(),
+  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

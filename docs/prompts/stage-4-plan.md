@@ -1,6 +1,6 @@
 # Stage 4 Plan — Figma Redesign, End-to-End Flow, Backend, Uploads, Ratings
 
-**Status:** Approved 2026-11-03 ("start with the work"). Phases 2–4 and 6 (ratings) done (server, 18 tests passing; migrations 001 + 002). Phase 1 blocked on the Figma Make export.
+**Status:** Approved 2026-11-03 ("start with the work"). Phases 2–6 done on the server (24 tests passing; migrations 001–003). Phase 5 live check pending Cloudinary keys. Phase 1 blocked on the Figma Make export.
 **Depends on:** Stage 3 demo app (`mobile/`), Figma Make code export in `docs/design/figma-make/`
 
 ## Decisions recorded (2026-11-03)
