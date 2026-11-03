@@ -1,0 +1,196 @@
+import { Router } from "express";
+import { z } from "zod";
+import { currentUser, requireRole, type AuthUser } from "../auth";
+import type { Db, Queryable } from "../db";
+import { conflict, forbidden, idParam, notFound, parse } from "../http";
+
+export const SERVICES = ["Mapping", "Monitoring", "Surveying", "Spraying"] as const;
+// Restricted/high-risk services stay on compliance hold: visible, never biddable
+// or assignable until an approved policy and evidence review exist (docs/AGENTS.md).
+export const RESTRICTED_SERVICES: readonly string[] = ["Spraying"];
+export const BIDDABLE_SERVICES = ["Mapping", "Monitoring", "Surveying"] as const;
+
+const JOB_FIELDS = `
+  j.id, j.title, j.service, j.location, j.area_ha::float8 AS "areaHa",
+  to_char(j.preferred_date, 'YYYY-MM-DD') AS "preferredDate", j.budget_zar AS "budgetZar",
+  j.brief, j.status, j.owner_id AS "ownerId", o.full_name AS "postedBy",
+  j.assigned_operator_id AS "assignedOperatorId", j.created_at AS "createdAt", j.completed_at AS "completedAt"`;
+const JOB_FROM = "FROM jobs j JOIN users o ON o.id = j.owner_id";
+
+type JobRow = { id: string; status: string; ownerId: string; assignedOperatorId: string | null };
+
+const jobSchema = z.object({
+  title: z.string().trim().min(4).max(120),
+  service: z.enum(SERVICES),
+  location: z.string().trim().min(2).max(120),
+  areaHa: z.number().positive().max(100_000),
+  preferredDate: z.iso.date(),
+  budgetZar: z.number().int().positive().max(10_000_000),
+  brief: z.string().trim().min(10).max(2000),
+});
+
+const bidSchema = z.object({
+  amountZar: z.number().int().positive().max(10_000_000),
+  days: z.number().int().min(1).max(60),
+  message: z.string().trim().min(10).max(1000),
+});
+
+const listSchema = z.object({
+  service: z.enum(SERVICES).optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
+async function loadJob(db: Queryable, id: unknown): Promise<JobRow & Record<string, unknown>> {
+  const { rows } = await db.query<JobRow & Record<string, unknown>>(`SELECT ${JOB_FIELDS} ${JOB_FROM} WHERE j.id = $1`, [
+    idParam(id, "Job"),
+  ]);
+  if (!rows[0]) throw notFound("Job");
+  return rows[0];
+}
+
+const isParticipant = (job: JobRow, user: AuthUser) =>
+  user.role === "admin" || job.ownerId === user.id || job.assignedOperatorId === user.id;
+
+export function jobsRouter(db: Db) {
+  const router = Router();
+
+  // Marketplace: everything still taking (or held from) bids.
+  router.get("/", async (request, response) => {
+    const { service, q } = parse(listSchema, request.query);
+    const { rows } = await db.query(
+      `SELECT ${JOB_FIELDS} ${JOB_FROM}
+       WHERE j.status IN ('open', 'on_hold')
+         AND ($1::text IS NULL OR j.service = $1)
+         AND ($2::text IS NULL OR j.title ILIKE '%' || $2 || '%' OR j.location ILIKE '%' || $2 || '%')
+       ORDER BY j.created_at DESC LIMIT 100`,
+      [service ?? null, q || null],
+    );
+    response.json(rows);
+  });
+
+  // Owner: jobs they posted. Operator: jobs assigned to them.
+  router.get("/mine", requireRole("farm_owner", "operator"), async (request, response) => {
+    const user = currentUser(request);
+    const column = user.role === "farm_owner" ? "j.owner_id" : "j.assigned_operator_id";
+    const { rows } = await db.query(`SELECT ${JOB_FIELDS} ${JOB_FROM} WHERE ${column} = $1 ORDER BY j.created_at DESC`, [
+      user.id,
+    ]);
+    response.json(rows);
+  });
+
+  router.post("/", requireRole("farm_owner"), async (request, response) => {
+    const input = parse(jobSchema, request.body);
+    const status = RESTRICTED_SERVICES.includes(input.service) ? "on_hold" : "open";
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO jobs (owner_id, title, service, location, area_ha, preferred_date, budget_zar, brief, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [currentUser(request).id, input.title, input.service, input.location, input.areaHa, input.preferredDate, input.budgetZar, input.brief, status],
+    );
+    response.status(201).json(await loadJob(db, rows[0].id));
+  });
+
+  router.get("/:id", async (request, response) => {
+    const user = currentUser(request);
+    const job = await loadJob(db, request.params.id);
+    const isPublic = job.status === "open" || job.status === "on_hold";
+    if (!isPublic && !isParticipant(job, user)) throw notFound("Job");
+
+    // Owners/admins see every bid; an operator sees only their own.
+    const seeAll = user.role === "admin" || job.ownerId === user.id;
+    const { rows: bids } = await db.query(
+      `SELECT b.id, b.operator_id AS "operatorId", u.full_name AS "operatorName", b.amount_zar AS "amountZar",
+         b.days, b.message, b.status, b.created_at AS "createdAt"
+       FROM bids b JOIN users u ON u.id = b.operator_id
+       WHERE b.job_id = $1 AND ($2 OR b.operator_id = $3)
+       ORDER BY b.amount_zar`,
+      [job.id, seeAll, user.id],
+    );
+    response.json({ ...job, bids });
+  });
+
+  router.post("/:id/bids", requireRole("operator"), async (request, response) => {
+    const input = parse(bidSchema, request.body);
+    const user = currentUser(request);
+    const job = await loadJob(db, request.params.id);
+
+    if (job.status === "on_hold") throw forbidden("This job is on compliance hold and is not accepting bids.");
+    if (job.status !== "open") throw conflict("This job is no longer accepting bids.");
+    const { rows: profile } = await db.query<{ status: string }>(
+      "SELECT verification_status AS status FROM operator_profiles WHERE user_id = $1",
+      [user.id],
+    );
+    if (profile[0]?.status !== "approved") throw forbidden("Your verification must be approved before you can bid.");
+
+    const { rows } = await db.query(
+      `INSERT INTO bids (job_id, operator_id, amount_zar, days, message) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (job_id, operator_id) DO NOTHING
+       RETURNING id, amount_zar AS "amountZar", days, message, status`,
+      [job.id, user.id, input.amountZar, input.days, input.message],
+    );
+    if (!rows[0]) throw conflict("You have already bid on this job.");
+    response.status(201).json(rows[0]);
+  });
+
+  router.post("/:id/select", requireRole("farm_owner"), async (request, response) => {
+    const { bidId } = parse(z.object({ bidId: z.uuid() }), request.body);
+    const user = currentUser(request);
+    const jobId = idParam(request.params.id, "Job");
+
+    await db.transaction(async (tx) => {
+      const { rows: bid } = await tx.query<{ operatorId: string }>(
+        `SELECT operator_id AS "operatorId" FROM bids WHERE id = $1 AND job_id = $2 AND status = 'pending'`,
+        [bidId, jobId],
+      );
+      if (!bid[0]) throw notFound("Bid");
+
+      // The status guard makes a second, concurrent selection a no-op.
+      const { rows: job } = await tx.query(
+        `UPDATE jobs SET status = 'assigned', assigned_operator_id = $3
+         WHERE id = $1 AND owner_id = $2 AND status = 'open' RETURNING id`,
+        [jobId, user.id, bid[0].operatorId],
+      );
+      if (!job[0]) throw conflict("This job is not open for selection.");
+
+      await tx.query(
+        "UPDATE bids SET status = CASE WHEN id = $2 THEN 'accepted' ELSE 'declined' END WHERE job_id = $1",
+        [jobId, bidId],
+      );
+      await tx.query(
+        "INSERT INTO audit_log (actor_id, action, target_type, target_id, detail) VALUES ($1, 'operator_selected', 'job', $2, $3)",
+        [user.id, jobId, bidId],
+      );
+    });
+    response.json(await loadJob(db, jobId));
+  });
+
+  // Two-step completion: the pilot says the work is done, the owner confirms.
+  const transition = (role: "operator" | "farm_owner", from: string, to: string, actorColumn: string) =>
+    router.post(
+      `/:id/${role === "operator" ? "complete" : "confirm"}`,
+      requireRole(role),
+      async (request, response) => {
+        const jobId = idParam(request.params.id, "Job");
+        const { rows } = await db.query(
+          `UPDATE jobs SET status = $3, completed_at = CASE WHEN $3 = 'completed' THEN now() ELSE completed_at END
+           WHERE id = $1 AND ${actorColumn} = $2 AND status = $4 RETURNING id`,
+          [jobId, currentUser(request).id, to, from],
+        );
+        if (!rows[0]) throw conflict(`Only jobs that are '${from}' can be moved to '${to}'.`);
+        response.json(await loadJob(db, jobId));
+      },
+    );
+  transition("operator", "assigned", "pending_confirmation", "assigned_operator_id");
+  transition("farm_owner", "pending_confirmation", "completed", "owner_id");
+
+  router.post("/:id/cancel", requireRole("farm_owner"), async (request, response) => {
+    const jobId = idParam(request.params.id, "Job");
+    const { rows } = await db.query(
+      `UPDATE jobs SET status = 'cancelled' WHERE id = $1 AND owner_id = $2 AND status IN ('open', 'on_hold') RETURNING id`,
+      [jobId, currentUser(request).id],
+    );
+    if (!rows[0]) throw conflict("Only open or held jobs can be cancelled.");
+    response.json(await loadJob(db, jobId));
+  });
+
+  return router;
+}

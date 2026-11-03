@@ -21,8 +21,14 @@ silently changing scope.
     AsyncStorage.
 -   Job participation supports bidding and direct interest where the job
     mode allows it; the farm owner makes final selection/confirmation.
--   MVP excludes payments, payouts, push notifications and
-    ratings/reviews. In-app notifications only.
+-   MVP excludes payments, payouts and push notifications. In-app
+    notifications only.
+-   Ratings/reviews are in the MVP (user decision, 2026-11-03): only the
+    farm owner of a completed job may leave one 1–5 star rating and
+    written review for the assigned operator. Reviews go live
+    immediately; the operator can report one and an admin can hide it.
+    Job completion is two-step: operator marks complete, farm owner
+    confirms.
 -   This is a native Expo client for the approved MVP. The TUT guide
     recommends PWA first and Expo as stretch; document the user's
     explicit Expo choice as a project-specific deviation. Do not add a
