@@ -1,13 +1,14 @@
 import { Text, View, Pressable, ImageBackground } from "react-native";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "../components/ui";
-import { useStore } from "../lib/store";
+import { homeFor, useSession } from "../lib/session";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const { updateProfile } = useStore();
+  const { user } = useSession();
+  if (user) return <Redirect href={homeFor(user.role)} />;
 
   return (
     <View className="flex-1 bg-forest-950">
@@ -31,39 +32,11 @@ export default function WelcomeScreen() {
 
         <Button label="Get started" onPress={() => router.push("/register")} />
 
-        <Pressable
-          className="mt-4 py-2 items-center"
-          onPress={() => {
-            updateProfile({ role: "operator" });
-            router.push("/operator-home");
-          }}
-        >
-          <Text className="text-white/80 text-sm">Already have an account? Continue as operator</Text>
-        </Pressable>
-
-        {/* Demo-only shortcuts mirroring the Figma prototype. Not authentication. */}
-        <View className="mt-6 pt-4 border-t border-white/20">
-          <Text className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-3 text-center">
-            Demo shortcuts
+        <Pressable className="mt-4 py-3 items-center" onPress={() => router.push("/login")} accessibilityRole="button">
+          <Text className="text-white/80 text-sm">
+            Already have an account? <Text className="text-lime font-bold">Sign in</Text>
           </Text>
-          <View className="flex-row gap-3">
-            <Pressable
-              className="flex-1 py-3 rounded-md border border-white/30 items-center active:opacity-70"
-              onPress={() => {
-                updateProfile({ role: "owner" });
-                router.push("/post-job");
-              }}
-            >
-              <Text className="text-white font-bold text-sm">Farm owner</Text>
-            </Pressable>
-            <Pressable
-              className="flex-1 py-3 rounded-md border border-white/30 items-center active:opacity-70"
-              onPress={() => router.push("/admin")}
-            >
-              <Text className="text-white font-bold text-sm">Admin queue</Text>
-            </Pressable>
-          </View>
-        </View>
+        </Pressable>
       </ImageBackground>
     </View>
   );

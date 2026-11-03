@@ -1,64 +1,98 @@
 import { useState } from "react";
-import { Text, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, Text, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Field } from "../components/ui";
-import { formatZar, isRestricted, useStore } from "../lib/store";
+import { Button, ErrorState, Field, Loading, StatusPill } from "../components/ui";
+import { ApiError, api, formatZar, isRestricted, serviceImage, type Bid, type Job, type OperatorProfile } from "../lib/api";
+import { useApi, useUser } from "../lib/session";
+
+type JobDetail = Job & { bids: Bid[] };
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { jobs, bids, profile, placeBid } = useStore();
+  const user = useUser();
+  const job = useApi<JobDetail>(`/jobs/${id}`);
+  const profile = useApi<OperatorProfile>(user.role === "operator" ? "/operators/me" : null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const job = jobs.find((j) => j.id === id);
-  if (!job) {
+  const back = () => (router.canGoBack() ? router.back() : router.replace(user.role === "operator" ? "/operator-home" : "/my-jobs"));
+
+  if (!job.data) {
     return (
-      <View className="flex-1 bg-cream items-center justify-center px-6">
-        <Text className="text-forest-950 font-bold text-lg mb-4">This job is no longer available.</Text>
-        <Button label="Back to jobs" variant="dark" onPress={() => router.replace("/operator-home")} />
+      <View className="flex-1 bg-cream px-6" style={{ paddingTop: insets.top + 60 }}>
+        {job.error ? <ErrorState message={job.error} onRetry={job.reload} /> : <Loading />}
+        <View className="mt-4"><Button label="Go back" variant="outline" onPress={back} /></View>
       </View>
     );
   }
 
-  const restricted = isRestricted(job.service);
-  const myName = profile.name || "You (demo)";
-  const alreadyBid = bids.some((b) => b.jobId === job.id && b.operator === myName);
-  // UI hint only; a real API must enforce eligibility server-side.
-  const blocker = restricted
-    ? "On compliance hold"
-    : profile.role !== "operator"
-      ? null
-      : profile.verification !== "approved"
-        ? "Verification required"
-        : alreadyBid
-          ? "Bid submitted"
-          : null;
+  const j = job.data;
+  const restricted = isRestricted(j.service);
+  const isOwner = j.ownerId === user.id;
+  const isAssigned = j.assignedOperatorId === user.id;
+  const myBid = j.bids.find((b) => b.operatorId === user.id);
+
+  const act = (path: string, confirm: { title: string; body: string }) =>
+    Alert.alert(confirm.title, confirm.body, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            job.setData({ ...(await api<Job>(`/jobs/${j.id}/${path}`, { method: "POST" })), bids: j.bids });
+          } catch (e) {
+            Alert.alert("Couldn't update the job", e instanceof ApiError ? e.message : "Please try again.");
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+
+  // One primary action per (role, status), so the next step is always obvious.
+  let footer: { hint?: string; button?: React.ReactNode } = {};
+  if (restricted) {
+    footer = { button: <Button label="On compliance hold" disabled onPress={() => {}} /> };
+  } else if (isOwner) {
+    if (j.status === "open") footer = { button: <Button label={`View bids (${j.bidCount})`} variant="dark" onPress={() => router.push({ pathname: "/review-bids", params: { jobId: j.id } })} /> };
+    if (j.status === "assigned") footer = { hint: `${j.assignedOperatorName} is working on this job. They'll mark it complete when done.` };
+    if (j.status === "pending_confirmation")
+      footer = { hint: "The pilot says the work is done.", button: <Button label="Confirm complete" busy={busy} onPress={() => act("confirm", { title: "Confirm the job is complete?", body: "Only confirm once you've received the work. You can then rate the pilot." })} /> };
+    if (j.status === "completed")
+      footer = j.reviewed ? { hint: "Completed and reviewed. Thank you!" } : { button: <Button label="Rate your pilot" onPress={() => router.push({ pathname: "/rate", params: { jobId: j.id } })} /> };
+  } else if (isAssigned) {
+    if (j.status === "assigned")
+      footer = { hint: "You were selected for this job.", button: <Button label="Mark complete" busy={busy} onPress={() => act("complete", { title: "Mark this job complete?", body: "The farm owner will be asked to confirm." })} /> };
+    if (j.status === "pending_confirmation") footer = { hint: "Waiting for the farm owner to confirm completion." };
+    if (j.status === "completed") footer = { hint: "Completed. This job now shows on your public profile." };
+  } else if (user.role === "operator" && j.status === "open") {
+    const verified = profile.data?.verificationStatus === "approved";
+    footer = myBid
+      ? { hint: `Your bid: ${formatZar(myBid.amountZar)} in ${myBid.days} day${myBid.days === 1 ? "" : "s"}.` }
+      : verified
+        ? { button: <Button label="Place a bid" onPress={() => setSheetOpen(true)} /> }
+        : { hint: "Bidding opens once an admin approves your verification.", button: <Button label="Verification required" disabled onPress={() => {}} /> };
+  }
 
   return (
     <View className="flex-1 bg-cream">
       <ScrollView className="flex-1">
         <View className="h-72">
-          <Image source={{ uri: job.image }} className="w-full h-full bg-forest-800" resizeMode="cover" />
-          <Pressable
-            className="absolute left-6 px-4 py-2 bg-paper rounded-full"
-            style={{ top: insets.top + 8 }}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace("/operator-home"))}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
+          <Image source={{ uri: serviceImage(j.service) }} className="w-full h-full bg-forest-800" resizeMode="cover" />
+          <Pressable className="absolute left-6 px-4 py-2 bg-paper rounded-full" style={{ top: insets.top + 8 }} onPress={back} accessibilityRole="button" accessibilityLabel="Back">
             <Text className="text-forest-900 font-bold">← Back</Text>
           </Pressable>
         </View>
 
         <View className="-mt-8 bg-paper rounded-t-lg p-6 pb-10">
           <View className="flex-row gap-2 mb-2">
-            <Text className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden ${restricted ? "bg-danger text-white" : "bg-lime text-forest-950"}`}>
-              {restricted ? "Compliance hold" : "Open for bids"}
-            </Text>
-            <Text className="bg-cream text-forest-900 text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden">{job.service}</Text>
+            <StatusPill status={j.status} />
+            <Text className="bg-cream text-forest-900 text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden">{j.service}</Text>
           </View>
-          <Text className="text-forest-950 text-2xl font-bold mb-4">{job.title}</Text>
+          <Text className="text-forest-950 text-2xl font-bold mb-4">{j.title}</Text>
 
           {restricted ? (
             <View className="p-4 rounded-md border border-danger bg-danger/10 mb-6">
@@ -72,9 +106,9 @@ export default function JobDetailsScreen() {
 
           <View className="flex-row gap-3 mb-6">
             {[
-              ["Location", job.location],
-              ["Area", `${job.areaHa} ha`],
-              ["Date", job.date],
+              ["Location", j.location],
+              ["Area", `${j.areaHa} ha`],
+              ["Date", j.preferredDate],
             ].map(([label, value]) => (
               <View key={label} className="bg-cream p-3 rounded-md border border-muted/20 flex-1">
                 <Text className="text-muted text-[10px] uppercase font-bold mb-1">{label}</Text>
@@ -84,41 +118,40 @@ export default function JobDetailsScreen() {
           </View>
 
           <Text className="text-forest-950 font-bold text-lg mb-2">Job brief</Text>
-          <Text className="text-muted leading-6 mb-6">{job.brief}</Text>
+          <Text className="text-muted leading-6 mb-6">{j.brief}</Text>
 
           <View className="p-4 bg-lime-soft rounded-lg border border-lime">
             <Text className="text-muted text-xs uppercase font-bold mb-1">Posted by</Text>
-            <Text className="text-forest-950 font-bold">{job.postedBy}</Text>
+            <Text className="text-forest-950 font-bold">{isOwner ? "You" : j.postedBy}</Text>
+            {j.assignedOperatorId && j.assignedOperatorName ? (
+              <Pressable onPress={() => router.push({ pathname: "/pilot", params: { id: j.assignedOperatorId! } })} className="mt-3">
+                <Text className="text-muted text-xs uppercase font-bold mb-1">Pilot</Text>
+                <Text className="text-forest-700 font-bold">{isAssigned ? "You" : `${j.assignedOperatorName} →`}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </ScrollView>
 
       <View className="bg-paper border-t border-muted/20 px-6 pt-4" style={{ paddingBottom: insets.bottom + 16 }}>
-        {profile.role === "operator" && !restricted && profile.verification !== "approved" ? (
-          <Text className="text-muted text-xs mb-3">Bidding opens once an admin approves your verification.</Text>
-        ) : null}
+        {footer.hint ? <Text className="text-muted text-sm mb-3">{footer.hint}</Text> : null}
         <View className="flex-row items-center justify-between">
-        <View>
-          <Text className="text-muted text-xs uppercase font-bold">Budget</Text>
-          <Text className="text-forest-950 text-2xl font-bold">{formatZar(job.budget)}</Text>
-        </View>
-        <View className="min-w-[160px]">
-          {profile.role === "owner" && !restricted ? (
-            <Button label="View bids" variant="dark" onPress={() => router.push({ pathname: "/review-bids", params: { jobId: job.id } })} />
-          ) : (
-            <Button label={blocker ?? "Place a bid"} disabled={!!blocker} onPress={() => setSheetOpen(true)} />
-          )}
-        </View>
+          <View className="mr-4">
+            <Text className="text-muted text-xs uppercase font-bold">Budget</Text>
+            <Text className="text-forest-950 text-2xl font-bold">{formatZar(j.budgetZar)}</Text>
+          </View>
+          {footer.button ? <View className="flex-1">{footer.button}</View> : null}
         </View>
       </View>
 
       <BidSheet
         visible={sheetOpen}
-        budget={job.budget}
+        budget={j.budgetZar}
         onClose={() => setSheetOpen(false)}
-        onSubmit={(amount, days, message) => {
-          placeBid({ jobId: job.id, amount, days, message });
+        onSubmit={async (amountZar, days, message) => {
+          await api(`/jobs/${j.id}/bids`, { body: { amountZar, days, message } });
           setSheetOpen(false);
+          await job.reload();
         }}
       />
     </View>
@@ -134,24 +167,34 @@ function BidSheet({
   visible: boolean;
   budget: number;
   onClose: () => void;
-  onSubmit: (amount: number, days: number, message: string) => void;
+  onSubmit: (amount: number, days: number, message: string) => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState(String(budget));
   const [days, setDays] = useState("3");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const errors = {
-    amount: Number(amount) > 0 ? undefined : "Enter your price in rand",
+    amount: Number(amount) > 0 && Number.isInteger(Number(amount)) ? undefined : "Enter your price in whole rand",
     days: Number(days) >= 1 && Number(days) <= 60 ? undefined : "Enter 1–60 days",
     message: message.trim().length >= 10 ? undefined : "Add a short message (10+ characters)",
   };
 
-  const submit = () => {
+  const submit = async () => {
     setSubmitted(true);
     if (Object.values(errors).some(Boolean)) return;
-    onSubmit(Number(amount), Number(days), message.trim());
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit(Number(amount), Number(days), message.trim());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -166,9 +209,10 @@ function BidSheet({
             <Field label="Estimated completion (days)" value={days} onChangeText={setDays} keyboardType="number-pad" error={submitted ? errors.days : undefined} />
             <Field label="Message to farm owner" placeholder="Equipment, availability, approach..." value={message} onChangeText={setMessage} multiline error={submitted ? errors.message : undefined} />
           </View>
+          {error ? <Text className="text-danger text-sm mb-4">{error}</Text> : null}
           <View className="flex-row gap-3">
             <View className="flex-1"><Button label="Cancel" variant="outline" onPress={onClose} /></View>
-            <View className="flex-1"><Button label="Submit bid" onPress={submit} /></View>
+            <View className="flex-1"><Button label="Submit bid" onPress={submit} busy={busy} /></View>
           </View>
         </View>
       </KeyboardAvoidingView>

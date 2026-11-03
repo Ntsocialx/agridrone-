@@ -1,7 +1,8 @@
-import { Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useStore } from "../lib/store";
+import type { JobStatus } from "../lib/api";
+import { useSession } from "../lib/session";
 
 export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: string }) {
   return (
@@ -19,24 +20,31 @@ export function Field({ label, error, ...input }: TextInputProps & { label: stri
   );
 }
 
-type ButtonProps = { label: string; onPress: () => void; variant?: "primary" | "dark" | "outline" | "danger"; disabled?: boolean };
+type ButtonProps = {
+  label: string;
+  onPress: () => void;
+  variant?: "primary" | "dark" | "outline" | "danger";
+  disabled?: boolean;
+  busy?: boolean;
+};
 
-export function Button({ label, onPress, variant = "primary", disabled }: ButtonProps) {
+export function Button({ label, onPress, variant = "primary", disabled, busy }: ButtonProps) {
   const styles = {
-    primary: ["bg-lime", "text-forest-950"],
-    dark: ["bg-forest-900", "text-white"],
-    outline: ["bg-paper border border-forest-900", "text-forest-900"],
-    danger: ["bg-paper border border-danger", "text-danger"],
+    primary: ["bg-lime", "text-forest-950", "#06261c"],
+    dark: ["bg-forest-900", "text-white", "#ffffff"],
+    outline: ["bg-paper border border-forest-900", "text-forest-900", "#0a3326"],
+    danger: ["bg-paper border border-danger", "text-danger", "#c84b42"],
   }[variant];
+  const inactive = disabled || busy;
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={inactive}
       accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: inactive, busy }}
       className={`py-4 px-5 rounded-md items-center active:opacity-80 ${styles[0]} ${disabled ? "opacity-40" : ""}`}
     >
-      <Text className={`font-bold text-base ${styles[1]}`}>{label}</Text>
+      {busy ? <ActivityIndicator color={styles[2]} /> : <Text className={`font-bold text-base ${styles[1]}`}>{label}</Text>}
     </Pressable>
   );
 }
@@ -70,12 +78,12 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
   );
 }
 
-export function BackHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function BackHeader({ title, subtitle, fallback = "/" }: { title: string; subtitle?: string; fallback?: Href }) {
   const insets = useSafeAreaInsets();
   return (
     <View className="px-6 pb-4 bg-paper" style={{ paddingTop: insets.top + 12 }}>
       <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
         accessibilityRole="button"
         accessibilityLabel="Back"
         className="mb-4 self-start py-1"
@@ -88,24 +96,105 @@ export function BackHeader({ title, subtitle }: { title: string; subtitle?: stri
   );
 }
 
-const TABS: Record<"operator" | "owner", { label: string; href: Href; path: string }[]> = {
+/** Dark evergreen header used on each role's home screens. */
+export function HeroHeader({ eyebrow, title, children }: { eyebrow: string; title: string; children?: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View className="bg-forest-900 pb-6 px-6 rounded-b-lg" style={{ paddingTop: insets.top + 16 }}>
+      <Text className="text-lime text-sm font-bold mb-1">{eyebrow}</Text>
+      <Text className="text-white text-3xl font-bold" numberOfLines={1}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+const STATUS_LABELS: Record<JobStatus, [string, string]> = {
+  open: ["Open for bids", "bg-lime text-forest-950"],
+  on_hold: ["Compliance hold", "bg-danger text-white"],
+  assigned: ["In progress", "bg-forest-900 text-lime"],
+  pending_confirmation: ["Awaiting confirmation", "bg-lime-soft text-forest-950"],
+  completed: ["Completed", "bg-cream text-forest-900"],
+  cancelled: ["Cancelled", "bg-cream text-muted"],
+};
+
+export function StatusPill({ status }: { status: JobStatus }) {
+  const [label, style] = STATUS_LABELS[status];
+  return (
+    <Text className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden self-start ${style}`}>{label}</Text>
+  );
+}
+
+/** Read-only stars, or a 1–5 picker when onChange is given. */
+export function Stars({ value, size = 16, onChange }: { value: number; size?: number; onChange?: (v: number) => void }) {
+  return (
+    <View className="flex-row" accessibilityLabel={`${value} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const star = (
+          <Text style={{ fontSize: size, lineHeight: size * 1.2 }} className={n <= Math.round(value) ? "text-forest-700" : "text-muted/30"}>
+            ★
+          </Text>
+        );
+        return onChange ? (
+          <Pressable key={n} onPress={() => onChange(n)} accessibilityRole="button" accessibilityLabel={`${n} star${n === 1 ? "" : "s"}`} className="px-1">
+            {star}
+          </Pressable>
+        ) : (
+          <View key={n}>{star}</View>
+        );
+      })}
+    </View>
+  );
+}
+
+export function Loading() {
+  return (
+    <View className="py-16 items-center">
+      <ActivityIndicator color="#1d5c45" size="large" />
+    </View>
+  );
+}
+
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <View className="bg-paper p-6 rounded-lg items-center border border-danger/30">
+      <Text className="text-forest-950 font-bold mb-1">Couldn&apos;t load this</Text>
+      <Text className="text-muted text-sm text-center mb-4">{message}</Text>
+      {onRetry ? <Button label="Try again" variant="outline" onPress={onRetry} /> : null}
+    </View>
+  );
+}
+
+export function EmptyState({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {
+  return (
+    <View className="bg-paper p-6 rounded-lg items-center">
+      <Text className="text-forest-950 font-bold mb-1">{title}</Text>
+      <Text className="text-muted text-sm text-center">{body}</Text>
+      {children ? <View className="mt-4 self-stretch">{children}</View> : null}
+    </View>
+  );
+}
+
+const TABS: Record<"operator" | "farm_owner", { label: string; href: Href; path: string }[]> = {
   operator: [
-    { label: "Jobs", href: "/operator-home", path: "/operator-home" },
+    { label: "Find jobs", href: "/operator-home", path: "/operator-home" },
+    { label: "My jobs", href: "/my-jobs", path: "/my-jobs" },
     { label: "Profile", href: "/operator-profile", path: "/operator-profile" },
   ],
-  owner: [
+  farm_owner: [
+    { label: "My jobs", href: "/my-jobs", path: "/my-jobs" },
     { label: "Post a job", href: "/post-job", path: "/post-job" },
-    { label: "Bids", href: "/review-bids", path: "/review-bids" },
   ],
 };
 
 export function BottomNav() {
-  const { profile } = useStore();
+  const { user, signOut } = useSession();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  if (!user || user.role === "admin") return null;
+
   return (
     <View className="bg-paper border-t border-muted/20 flex-row" style={{ paddingBottom: insets.bottom }}>
-      {TABS[profile.role].map((tab) => {
+      {TABS[user.role].map((tab) => {
         const active = pathname === tab.path;
         return (
           <Pressable
@@ -115,12 +204,14 @@ export function BottomNav() {
             accessibilityState={{ selected: active }}
             className="flex-1 items-center py-4"
           >
+            <View className={`h-1 w-8 rounded-full mb-2 ${active ? "bg-lime" : "bg-transparent"}`} />
             <Text className={`text-sm ${active ? "text-forest-900 font-bold" : "text-muted"}`}>{tab.label}</Text>
           </Pressable>
         );
       })}
-      <Pressable onPress={() => router.replace("/")} accessibilityRole="tab" className="flex-1 items-center py-4">
-        <Text className="text-sm text-muted">Exit demo</Text>
+      <Pressable onPress={signOut} accessibilityRole="button" className="flex-1 items-center py-4">
+        <View className="h-1 w-8 mb-2" />
+        <Text className="text-sm text-muted">Sign out</Text>
       </Pressable>
     </View>
   );

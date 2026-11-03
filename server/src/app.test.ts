@@ -199,7 +199,8 @@ describe("job flow", () => {
 
     expect((await as(rival.token).post(`${jobUrl}/select`, { bidId: bid.body.id })).status).toBe(403);
     const selected = await as(owner.token).post(`${jobUrl}/select`, { bidId: bid.body.id });
-    expect(selected.body).toMatchObject({ status: "assigned", assignedOperatorId: pilot.id });
+    expect(selected.body).toMatchObject({ status: "assigned", assignedOperatorId: pilot.id, bidCount: 2, reviewed: false });
+    expect(selected.body.assignedOperatorName).toMatch(/^Test operator/);
     expect((await as(owner.token).post(`${jobUrl}/select`, { bidId: bid.body.id })).status).toBe(404);
 
     // Gone from the marketplace and hidden from non-participants.

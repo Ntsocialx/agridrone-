@@ -14,8 +14,11 @@ const JOB_FIELDS = `
   j.id, j.title, j.service, j.location, j.area_ha::float8 AS "areaHa",
   to_char(j.preferred_date, 'YYYY-MM-DD') AS "preferredDate", j.budget_zar AS "budgetZar",
   j.brief, j.status, j.owner_id AS "ownerId", o.full_name AS "postedBy",
-  j.assigned_operator_id AS "assignedOperatorId", j.created_at AS "createdAt", j.completed_at AS "completedAt"`;
-const JOB_FROM = "FROM jobs j JOIN users o ON o.id = j.owner_id";
+  j.assigned_operator_id AS "assignedOperatorId", a.full_name AS "assignedOperatorName",
+  j.created_at AS "createdAt", j.completed_at AS "completedAt",
+  (SELECT count(*)::int FROM bids b WHERE b.job_id = j.id) AS "bidCount",
+  EXISTS (SELECT 1 FROM reviews r WHERE r.job_id = j.id) AS "reviewed"`;
+const JOB_FROM = "FROM jobs j JOIN users o ON o.id = j.owner_id LEFT JOIN users a ON a.id = j.assigned_operator_id";
 
 type JobRow = { id: string; status: string; ownerId: string; assignedOperatorId: string | null };
 
