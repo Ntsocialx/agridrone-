@@ -7,6 +7,7 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://agridrone-api
 
 export type Role = "operator" | "farm_owner" | "admin";
 export type User = { id: string; role: Role; fullName: string };
+export type Me = User & { email: string; phone: string };
 export type Service = "Mapping" | "Monitoring" | "Surveying" | "Spraying";
 export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected";
 export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled";

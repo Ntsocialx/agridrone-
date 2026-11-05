@@ -137,6 +137,14 @@ describe("auth", () => {
     expect(wrong.body).toEqual(unknown.body);
   });
 
+  it("returns the signed-in user's own details from /me", async () => {
+    const { token, id } = await register("farm_owner");
+    const me = await as(token).get("/api/v1/me");
+    expect(me.status).toBe(200);
+    expect(me.body).toEqual({ id, role: "farm_owner", fullName: `Test farm_owner ${n}`, email: `user${n}@example.test`, phone: "+27 00 000 0000" });
+    expect((await request(app).get("/api/v1/me")).status).toBe(401);
+  });
+
   it("rejects missing and forged tokens", async () => {
     expect((await request(app).get("/api/v1/jobs")).status).toBe(401);
     expect((await as("not-a-real-token").get("/api/v1/jobs")).status).toBe(401);

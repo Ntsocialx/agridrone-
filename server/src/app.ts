@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { requireAuth } from "./auth";
+import { currentUser, requireAuth } from "./auth";
 import { corsOrigins } from "./config/env";
 import type { Db } from "./db";
 import { errorHandler } from "./middleware/error-handler";
@@ -35,6 +35,14 @@ export function createApp({ db, storage, mailer = null, jwtSecret, authRateLimit
   const authed = requireAuth(db, jwtSecret);
   app.use("/api/v1", systemRouter(db));
   app.use("/api/v1/auth", authRouter(db, jwtSecret, mailer, authRateLimit));
+  // The signed-in user's own contact details, for their profile screen.
+  app.get("/api/v1/me", authed, async (request, response) => {
+    const { rows } = await db.query(
+      'SELECT id, role, full_name AS "fullName", email, phone FROM users WHERE id = $1',
+      [currentUser(request).id],
+    );
+    response.json(rows[0]);
+  });
   app.use("/api/v1/jobs", authed, jobsRouter(db));
   app.use("/api/v1/operators", authed, operatorsRouter(db));
   app.use("/api/v1/operators", authed, uploadsRouter(db, storage));

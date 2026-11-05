@@ -212,11 +212,12 @@ const TABS: Record<"operator" | "farm_owner", { label: string; href: Href; path:
   farm_owner: [
     { label: "My jobs", href: "/my-jobs", path: "/my-jobs" },
     { label: "Post a job", href: "/post-job", path: "/post-job" },
+    { label: "Profile", href: "/owner-profile", path: "/owner-profile" },
   ],
 };
 
 export function BottomNav() {
-  const { user, signOut } = useSession();
+  const { user } = useSession();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   if (!user || user.role === "admin") return null;
@@ -238,10 +239,6 @@ export function BottomNav() {
           </Pressable>
         );
       })}
-      <Pressable onPress={signOut} accessibilityRole="button" className="flex-1 items-center py-4">
-        <View className="h-1 w-8 mb-2" />
-        <Text className="text-sm text-muted">Sign out</Text>
-      </Pressable>
     </View>
   );
 }
@@ -260,4 +257,10 @@ export function LegalFooter({ onDark }: { onDark?: boolean }) {
       <Text className={`${tone} text-xs`}>Powered by 4IR</Text>
     </View>
   );
+}
+
+/** Sits at the bottom of each profile screen. */
+export function SignOutButton() {
+  const { signOut } = useSession();
+  return <Button label="Sign out" variant="danger" onPress={signOut} />;
 }

@@ -22,6 +22,7 @@ function RootStack() {
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="operator-home" />
         <Stack.Screen name="operator-profile" />
+        <Stack.Screen name="owner-profile" />
         <Stack.Screen name="my-jobs" />
         <Stack.Screen name="post-job" />
         <Stack.Screen name="job-details" />

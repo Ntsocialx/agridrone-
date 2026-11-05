@@ -51,6 +51,7 @@ Errors are `{ "error": { "code", "message" } }`.
 | Method | Path | Who | Notes |
 | --- | --- | --- | --- |
 | GET | `/health`, `/ready` | anyone | `ready` checks the database |
+| GET | `/me` | signed in | own id, role, name, email, phone |
 | POST | `/auth/register` | anyone | `role`: `operator` or `farm_owner`; `acceptTerms: true` required |
 | POST | `/auth/login` | anyone | rate-limited; generic error |
 | POST | `/auth/password/forgot` | anyone | `{ email }`; same reply whether or not the account exists; 503 without Brevo |
