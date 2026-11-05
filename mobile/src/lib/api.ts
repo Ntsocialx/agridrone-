@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 // Override with EXPO_PUBLIC_API_URL (e.g. http://<laptop-ip>:3000/api/v1) for local dev.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://agridrone-api-olnv.onrender.com/api/v1";
@@ -89,9 +90,19 @@ const TOKEN_KEY = "agridrone.session";
 let token: string | null = null;
 let onUnauthorized: () => void = () => {};
 
+// SecureStore is native-only; the browser preview (for development) falls back to localStorage.
+const store =
+  Platform.OS === "web"
+    ? {
+        getItemAsync: async (key: string) => localStorage.getItem(key),
+        setItemAsync: async (key: string, value: string) => localStorage.setItem(key, value),
+        deleteItemAsync: async (key: string) => localStorage.removeItem(key),
+      }
+    : SecureStore;
+
 export const session = {
   async load(): Promise<{ token: string; user: User } | null> {
-    const raw = await SecureStore.getItemAsync(TOKEN_KEY);
+    const raw = await store.getItemAsync(TOKEN_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw) as { token: string; user: User };
     token = saved.token;
@@ -99,11 +110,11 @@ export const session = {
   },
   async save(newToken: string, user: User) {
     token = newToken;
-    await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify({ token: newToken, user }));
+    await store.setItemAsync(TOKEN_KEY, JSON.stringify({ token: newToken, user }));
   },
   async clear() {
     token = null;
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await store.deleteItemAsync(TOKEN_KEY);
   },
   setUnauthorizedHandler(handler: () => void) {
     onUnauthorized = handler;

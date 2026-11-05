@@ -20,7 +20,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: ""
+        value: http://localhost:8081
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
