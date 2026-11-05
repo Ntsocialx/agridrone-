@@ -3,7 +3,7 @@ import { Animated, Easing, Text, View, Pressable, ImageBackground, Image } from 
 import { Redirect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { useReduceMotion } from "../components/DroneLoader";
 import { LegalFooter } from "../components/ui";
 import { homeFor, useSession } from "../lib/session";
@@ -14,6 +14,7 @@ const BACKGROUND = "https://images.unsplash.com/photo-1625246333195-78d9c38ad449
 const LOGO = require("../../assets/logo-agriseta.png");
 const SUN = "#f5a623";
 const BADGE = 168;
+const RING = 240;
 
 export default function WelcomeScreen() {
   const { user } = useSession();
@@ -70,30 +71,36 @@ function Welcome() {
       <View className="flex-1 px-6" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 20 }}>
         <View className="flex-1 items-center justify-center">
           <Animated.View
-            className="items-center justify-center"
             style={{
-              width: 240,
-              height: 240,
+              width: RING,
+              height: RING,
               opacity: badge,
               transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
             }}
           >
-            {/* Two sun rings echoing the sun in the logo; the outer one breathes slowly. */}
+            {/* Two sun rings echoing the sun in the logo, drawn on one shared centre; the outer one breathes slowly. */}
             <Animated.View
               style={{
                 position: "absolute",
-                width: 240,
-                height: 240,
-                borderRadius: 120,
-                backgroundColor: SUN,
-                opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }),
-                transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.04] }) }],
+                top: 0,
+                left: 0,
+                opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
+                transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.03] }) }],
               }}
-            />
-            <View style={{ position: "absolute", width: 204, height: 204, borderRadius: 102, backgroundColor: SUN, opacity: 0.2 }} />
+            >
+              <Svg width={RING} height={RING}>
+                <Circle cx={RING / 2} cy={RING / 2} r={RING / 2} fill={SUN} opacity={0.22} />
+              </Svg>
+            </Animated.View>
+            <Svg width={RING} height={RING} style={{ position: "absolute", top: 0, left: 0 }}>
+              <Circle cx={RING / 2} cy={RING / 2} r={(RING + BADGE) / 4} fill={SUN} opacity={0.3} />
+            </Svg>
             <View
               className="bg-paper items-center justify-center"
               style={{
+                position: "absolute",
+                top: (RING - BADGE) / 2,
+                left: (RING - BADGE) / 2,
                 width: BADGE,
                 height: BADGE,
                 borderRadius: BADGE / 2,
@@ -132,7 +139,9 @@ function Welcome() {
           >
             <Text className="text-forest-950 font-bold text-base mr-4">Get started</Text>
             <View className="bg-forest-950 rounded-full items-center justify-center" style={{ width: 36, height: 36 }}>
-              <Text className="text-lime font-bold text-lg" style={{ marginTop: -2 }}>›</Text>
+              <Svg width={16} height={16} viewBox="0 0 16 16">
+                <Path d="M6 3.5 L10.5 8 L6 12.5" stroke="#b8f13e" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </Svg>
             </View>
           </Pressable>
 
