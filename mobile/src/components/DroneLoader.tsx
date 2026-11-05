@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Text, View } from "react-native";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { subscribeSlow } from "../lib/api";
 
 const MESSAGES = [
@@ -32,64 +33,121 @@ function useReduceMotion() {
   return reduce;
 }
 
-/** The drone itself: hovering body with spinning rotors. */
+/** Side view of a quadcopter: body, arms, landing gear, camera gimbal, blurred props and nav lights. */
+const DRONE_W = 160;
+const DRONE_H = 72;
+// Rotor hubs as [centre x, y, blade length]; the far pair sits higher and smaller to read as depth.
+const FAR_ROTORS = [[46, 5, 26], [114, 5, 26]] as const;
+const NEAR_ROTORS = [[22, 9, 36], [138, 9, 36]] as const;
+
 function Drone({ scale = 1, still }: { scale?: number; still: boolean }) {
   const hover = useState(() => new Animated.Value(0))[0];
   const spin = useState(() => new Animated.Value(0))[0];
+  const blink = useState(() => new Animated.Value(0))[0];
 
   useLoop(
     () =>
       Animated.sequence([
-        Animated.timing(hover, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(hover, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(hover, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(hover, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]),
     still,
   );
-  useLoop(() => Animated.timing(spin, { toValue: 1, duration: 140, easing: Easing.linear, useNativeDriver: true }), still);
+  useLoop(() => Animated.timing(spin, { toValue: 1, duration: 120, easing: Easing.linear, useNativeDriver: true }), still);
+  useLoop(
+    () =>
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 1, duration: 90, useNativeDriver: true }),
+        Animated.timing(blink, { toValue: 0, duration: 90, useNativeDriver: true }),
+        Animated.delay(900),
+      ]),
+    still,
+  );
 
-  // A rotor squashing to a sliver and back reads as a fast spin.
-  const rotorScale = spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.15, 1] });
-  const translateY = hover.interpolate({ inputRange: [0, 1], outputRange: [0, -10 * scale] });
+  // A blade squashing to a sliver and back reads as a fast spin.
+  const bladeScale = spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.1, 1] });
+  const translateY = hover.interpolate({ inputRange: [0, 1], outputRange: [0, -8 * scale] });
+  const rotate = hover.interpolate({ inputRange: [0, 1], outputRange: ["-1.5deg", "1.5deg"] });
+  const lightOpacity = blink.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
 
-  const rotor = (left: number) => (
+  const blade = ([x, y, len]: readonly [number, number, number], color: string) => (
+    <Animated.View
+      key={`${x}`}
+      style={{
+        position: "absolute",
+        left: (x - len / 2) * scale,
+        top: (y - 1.5) * scale,
+        width: len * scale,
+        height: 3 * scale,
+        borderRadius: 1.5 * scale,
+        backgroundColor: color,
+        transform: [{ scaleX: bladeScale }],
+      }}
+    />
+  );
+  const light = (left: number, color: string) => (
     <Animated.View
       style={{
         position: "absolute",
-        top: 0,
         left: left * scale,
-        width: 34 * scale,
-        height: 6 * scale,
-        borderRadius: 3 * scale,
-        backgroundColor: "#b8f13e",
-        opacity: 0.9,
-        transform: [{ scaleX: rotorScale }],
+        top: 15 * scale,
+        width: 4 * scale,
+        height: 4 * scale,
+        borderRadius: 2 * scale,
+        backgroundColor: color,
+        opacity: lightOpacity,
       }}
     />
   );
 
   return (
-    <Animated.View style={{ width: 120 * scale, height: 44 * scale, transform: [{ translateY }] }}>
-      {rotor(0)}
-      {rotor(86)}
-      {/* arms */}
-      <View style={{ position: "absolute", top: 3 * scale, left: 16 * scale, width: 88 * scale, height: 4 * scale, borderRadius: 2 * scale, backgroundColor: "#1d5c45" }} />
-      <View style={{ position: "absolute", top: 3 * scale, left: 15 * scale, width: 4 * scale, height: 14 * scale, backgroundColor: "#1d5c45" }} />
-      <View style={{ position: "absolute", top: 3 * scale, left: 101 * scale, width: 4 * scale, height: 14 * scale, backgroundColor: "#1d5c45" }} />
-      {/* body + camera */}
-      <View
-        style={{
-          position: "absolute",
-          top: 10 * scale,
-          left: 32 * scale,
-          width: 56 * scale,
-          height: 22 * scale,
-          borderRadius: 10 * scale,
-          backgroundColor: "#0a3326",
-          borderWidth: 2 * scale,
-          borderColor: "#b8f13e",
-        }}
-      />
-      <View style={{ position: "absolute", top: 30 * scale, left: 55 * scale, width: 10 * scale, height: 10 * scale, borderRadius: 5 * scale, backgroundColor: "#b8f13e" }} />
+    <Animated.View style={{ width: DRONE_W * scale, height: DRONE_H * scale, transform: [{ translateY }, { rotate }] }}>
+      <Svg width={DRONE_W * scale} height={DRONE_H * scale} viewBox={`0 0 ${DRONE_W} ${DRONE_H}`}>
+        {/* far arms, motors and prop blur */}
+        <Line x1={62} y1={22} x2={46} y2={10} stroke="#124635" strokeWidth={3} strokeLinecap="round" />
+        <Line x1={98} y1={22} x2={114} y2={10} stroke="#124635" strokeWidth={3} strokeLinecap="round" />
+        {FAR_ROTORS.map(([x, y, len]) => (
+          <G key={x}>
+            <Ellipse cx={x} cy={y} rx={len / 2 + 2} ry={2} fill="#b8f13e" opacity={0.12} />
+            <Rect x={x - 1} y={y} width={2} height={4} fill="#124635" />
+            <Rect x={x - 3.5} y={y + 4} width={7} height={5} rx={1.5} fill="#124635" />
+          </G>
+        ))}
+
+        {/* landing gear */}
+        <Path d="M64 36 L56 60 M96 36 L104 60" stroke="#1d5c45" strokeWidth={3} strokeLinecap="round" />
+        <Path d="M46 61 H68 M92 61 H114" stroke="#1d5c45" strokeWidth={3.5} strokeLinecap="round" />
+
+        {/* near arms */}
+        <Path d="M56 24 L26 17" stroke="#1d5c45" strokeWidth={4.5} strokeLinecap="round" />
+        <Path d="M104 24 L134 17" stroke="#1d5c45" strokeWidth={4.5} strokeLinecap="round" />
+
+        {/* body: dark hull, lighter canopy, lime trim */}
+        <Rect x={50} y={17} width={60} height={20} rx={9} fill="#0a3326" />
+        <Path d="M58 18 Q80 8 102 18 Z" fill="#1d5c45" />
+        <Rect x={54} y={27} width={52} height={2} rx={1} fill="#b8f13e" />
+        <Rect x={92} y={21} width={8} height={3} rx={1.5} fill="#b8f13e" opacity={0.6} />
+
+        {/* camera gimbal */}
+        <Rect x={76} y={37} width={8} height={4} fill="#124635" />
+        <Circle cx={80} cy={46} r={6} fill="#0a3326" stroke="#b8f13e" strokeWidth={1.5} />
+        <Circle cx={80} cy={46} r={2.5} fill="#b8f13e" opacity={0.85} />
+
+        {/* near motors and prop blur */}
+        {NEAR_ROTORS.map(([x, y, len]) => (
+          <G key={x}>
+            <Ellipse cx={x} cy={y} rx={len / 2 + 3} ry={2.5} fill="#b8f13e" opacity={0.22} />
+            <Rect x={x - 1.5} y={y} width={3} height={5} fill="#0a3326" />
+            <Rect x={x - 5} y={y + 5} width={10} height={7} rx={2} fill="#0a3326" stroke="#1d5c45" strokeWidth={1} />
+          </G>
+        ))}
+      </Svg>
+
+      {FAR_ROTORS.map((r) => blade(r, "#8fbf2e"))}
+      {NEAR_ROTORS.map((r) => blade(r, "#b8f13e"))}
+      {/* navigation lights: red port, green starboard */}
+      {light(15, "#ff5a4e")}
+      {light(141, "#4ade80")}
     </Animated.View>
   );
 }
@@ -155,12 +213,12 @@ function DroneScene() {
         {/* camera beam */}
         <Animated.View
           style={{
-            marginTop: 2,
+            marginTop: -8,
             width: 0,
             height: 0,
             borderLeftWidth: 70,
             borderRightWidth: 70,
-            borderTopWidth: 92,
+            borderTopWidth: 72,
             borderLeftColor: "transparent",
             borderRightColor: "transparent",
             borderTopColor: "rgba(184,241,62,0.16)",
