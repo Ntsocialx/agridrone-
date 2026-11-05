@@ -25,7 +25,7 @@ function useLoop(make: () => Animated.CompositeAnimation, still: boolean) {
   }, [still]);
 }
 
-function useReduceMotion() {
+export function useReduceMotion() {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduce).catch(() => {});
@@ -40,7 +40,7 @@ const DRONE_H = 72;
 const FAR_ROTORS = [[46, 5, 26], [114, 5, 26]] as const;
 const NEAR_ROTORS = [[22, 9, 36], [138, 9, 36]] as const;
 
-function Drone({ scale = 1, still }: { scale?: number; still: boolean }) {
+export function Drone({ scale = 1, still }: { scale?: number; still: boolean }) {
   const hover = useState(() => new Animated.Value(0))[0];
   const spin = useState(() => new Animated.Value(0))[0];
   const blink = useState(() => new Animated.Value(0))[0];

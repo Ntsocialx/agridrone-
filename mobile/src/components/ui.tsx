@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Linking, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
@@ -242,6 +242,22 @@ export function BottomNav() {
         <View className="h-1 w-8 mb-2" />
         <Text className="text-sm text-muted">Sign out</Text>
       </Pressable>
+    </View>
+  );
+}
+
+const TERMS_URL = "https://www.agriseta.co.za/";
+
+/** "Terms and Conditions | Powered by 4IR" line for the welcome and sign-in screens. */
+export function LegalFooter({ onDark }: { onDark?: boolean }) {
+  const tone = onDark ? "text-paper/60" : "text-muted";
+  return (
+    <View className="flex-row justify-center items-center">
+      <Pressable onPress={() => Linking.openURL(TERMS_URL)} accessibilityRole="link" hitSlop={8}>
+        <Text className={`${tone} text-xs underline`}>Terms and Conditions</Text>
+      </Pressable>
+      <Text className={`${tone} text-xs mx-2`}>|</Text>
+      <Text className={`${tone} text-xs`}>Powered by 4IR</Text>
     </View>
   );
 }

@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground, Linking } from "react-native";
+import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from "react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Field, PasswordField } from "../components/ui";
+import { Button, Field, LegalFooter, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
 import { homeFor, useSession } from "../lib/session";
 
 // "A drone flying over a field of wheat" by Elisa Photography, Unsplash License.
 const BACKGROUND = "https://images.unsplash.com/photo-1657093114835-031e7cf9520c?auto=format&fit=crop&w=1200&q=80";
-
-const TERMS_URL = "https://www.agriseta.co.za/";
 
 type Mode = "member" | "admin";
 
@@ -122,12 +120,8 @@ export default function LoginScreen() {
               </Pressable>
             ) : null}
 
-            <View className="flex-row justify-center items-center mt-8">
-              <Pressable onPress={() => Linking.openURL(TERMS_URL)} accessibilityRole="link" hitSlop={8}>
-                <Text className="text-muted text-xs underline">Terms and Conditions</Text>
-              </Pressable>
-              <Text className="text-muted text-xs mx-2">|</Text>
-              <Text className="text-muted text-xs">Powered by 4IR</Text>
+            <View className="mt-8">
+              <LegalFooter />
             </View>
           </View>
         </ScrollView>
