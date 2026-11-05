@@ -63,6 +63,7 @@ const as = (token: string) => ({
   get: (url: string) => request(app).get(url).set("Authorization", `Bearer ${token}`),
   post: (url: string, body: object = {}) => request(app).post(url).set("Authorization", `Bearer ${token}`).send(body),
   put: (url: string, body: object) => request(app).put(url).set("Authorization", `Bearer ${token}`).send(body),
+  patch: (url: string, body: object) => request(app).patch(url).set("Authorization", `Bearer ${token}`).send(body),
 });
 
 const JOB = {
@@ -148,6 +149,50 @@ describe("auth", () => {
   it("rejects missing and forged tokens", async () => {
     expect((await request(app).get("/api/v1/jobs")).status).toBe(401);
     expect((await as("not-a-real-token").get("/api/v1/jobs")).status).toBe(401);
+  });
+});
+
+describe("editing your own account", () => {
+  it("updates name and phone without a password", async () => {
+    const { token } = await register("operator");
+    const email = `user${n}@example.test`;
+    const response = await as(token).patch("/api/v1/me", { fullName: "New Name", phone: "+27 82 123 4567", email });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ fullName: "New Name", phone: "+27 82 123 4567", email });
+  });
+
+  it("needs the current password to change email, and keeps emails unique", async () => {
+    const { token: other } = await register("farm_owner");
+    const takenEmail = `user${n}@example.test`;
+    expect(other).toBeTruthy();
+    const { token, id } = await register("farm_owner");
+    const base = { fullName: "Owner", phone: "+27 00 000 0000" };
+
+    expect((await as(token).patch("/api/v1/me", { ...base, email: "new@example.test" })).body.error.code).toBe("WRONG_PASSWORD");
+    expect((await as(token).patch("/api/v1/me", { ...base, email: "new@example.test", currentPassword: "wrong-pass" })).status).toBe(400);
+    expect((await as(token).patch("/api/v1/me", { ...base, email: takenEmail, currentPassword: "password123" })).status).toBe(409);
+
+    const ok = await as(token).patch("/api/v1/me", { ...base, email: "New@Example.test", currentPassword: "password123" });
+    expect(ok.status).toBe(200);
+    expect(ok.body.email).toBe("new@example.test");
+    expect((await request(app).post("/api/v1/auth/login").send({ email: "new@example.test", password: "password123" })).status).toBe(200);
+    const { rows } = await db.query("SELECT 1 FROM audit_log WHERE actor_id = $1 AND action = 'email_changed'", [id]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("changes the password only with the current one", async () => {
+    const { token } = await register("operator");
+    const email = `user${n}@example.test`;
+    expect((await as(token).post("/api/v1/me/password", { currentPassword: "nope-nope", newPassword: "brand-new-pass" })).status).toBe(400);
+    expect((await as(token).post("/api/v1/me/password", { currentPassword: "password123", newPassword: "short" })).status).toBe(400);
+    expect((await as(token).post("/api/v1/me/password", { currentPassword: "password123", newPassword: "brand-new-pass" })).status).toBe(204);
+    expect((await request(app).post("/api/v1/auth/login").send({ email, password: "password123" })).status).toBe(401);
+    expect((await request(app).post("/api/v1/auth/login").send({ email, password: "brand-new-pass" })).status).toBe(200);
+  });
+
+  it("does not let admins edit through the app", async () => {
+    const admin = await createAdmin();
+    expect((await as(admin).patch("/api/v1/me", { fullName: "Admin", phone: "+27 00 000 0000", email: "a@example.test" })).status).toBe(403);
   });
 });
 

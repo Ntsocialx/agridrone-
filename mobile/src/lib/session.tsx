@@ -7,6 +7,7 @@ type Session = {
   ready: boolean;
   signIn: (token: string, user: User) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -39,7 +40,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   };
 
-  return <SessionContext.Provider value={{ user, ready, signIn, signOut }}>{children}</SessionContext.Provider>;
+  const updateUser = async (newUser: User) => {
+    await session.updateUser(newUser);
+    setUser(newUser);
+  };
+
+  return <SessionContext.Provider value={{ user, ready, signIn, signOut, updateUser }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {

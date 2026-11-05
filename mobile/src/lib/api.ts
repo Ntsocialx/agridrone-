@@ -114,6 +114,10 @@ export const session = {
     token = newToken;
     await store.setItemAsync(TOKEN_KEY, JSON.stringify({ token: newToken, user }));
   },
+  /** Keeps the saved name in step after the user edits their details. */
+  async updateUser(user: User) {
+    if (token) await store.setItemAsync(TOKEN_KEY, JSON.stringify({ token, user }));
+  },
   async clear() {
     token = null;
     await store.deleteItemAsync(TOKEN_KEY);

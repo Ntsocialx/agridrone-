@@ -52,6 +52,8 @@ Errors are `{ "error": { "code", "message" } }`.
 | --- | --- | --- | --- |
 | GET | `/health`, `/ready` | anyone | `ready` checks the database |
 | GET | `/me` | signed in | own id, role, name, email, phone |
+| PATCH | `/me` | pilot, farm owner | `{ fullName, phone, email, currentPassword? }`; password needed only to change email; audited |
+| POST | `/me/password` | pilot, farm owner | `{ currentPassword, newPassword }`; audited |
 | POST | `/auth/register` | anyone | `role`: `operator` or `farm_owner`; `acceptTerms: true` required |
 | POST | `/auth/login` | anyone | rate-limited; generic error |
 | POST | `/auth/password/forgot` | anyone | `{ email }`; same reply whether or not the account exists; 503 without Brevo |

@@ -3,6 +3,7 @@ import { Alert, Image, Text, View, Pressable, ScrollView, KeyboardAvoidingView, 
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { AccountCard } from "../components/AccountCard";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading, SignOutButton } from "../components/ui";
 import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PickedFile, type PilotProfile, type Service } from "../lib/api";
 import { useApi, useUser } from "../lib/session";
@@ -264,7 +265,9 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
               disabled={busy !== null && busy !== "submit"}
             />
           )}
-          <View className={locked ? "" : "mt-4"}>
+          <Text className={`text-forest-950 font-bold mb-3 uppercase text-xs tracking-widest ${locked ? "" : "mt-10"}`}>Account</Text>
+          <AccountCard />
+          <View className="mt-8">
             <SignOutButton />
           </View>
         </View>

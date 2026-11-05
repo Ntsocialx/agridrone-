@@ -10,7 +10,7 @@ import type { Mailer } from "../mailer";
 // Bump when the Terms/Privacy Notice text changes; the accepted version is stored.
 export const TERMS_VERSION = "2026-11-03";
 
-const registerSchema = z.object({
+export const registerSchema = z.object({
   email: z.email().max(254).transform((e) => e.toLowerCase()),
   password: z.string().min(8).max(128),
   fullName: z.string().trim().min(2).max(100),
