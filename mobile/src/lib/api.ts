@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { File } from "expo-file-system";
 import { Platform } from "react-native";
 
 // Override with EXPO_PUBLIC_API_URL (e.g. http://<laptop-ip>:3000/api/v1) for local dev.
@@ -194,8 +195,8 @@ export async function uploadFile(kind: "licence" | "portfolio", file: PickedFile
     const blob = await (await fetch(file.uri)).blob();
     form.append("file", blob, file.name);
   } else {
-    // React Native's FormData accepts a { uri, name, type } file descriptor.
-    form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+    // Expo's fetch rejects React Native's old { uri, name, type } parts; an expo-file-system File streams the bytes.
+    form.append("file", new File(file.uri) as unknown as Blob, file.name);
   }
 
   let response: Response;
