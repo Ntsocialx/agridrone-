@@ -8,22 +8,23 @@ import type { DeliveryType, Storage } from "../storage";
 
 // Bump when the licence-upload notice text changes; the accepted version is stored.
 export const LICENCE_CONSENT_VERSION = "2026-11-03";
-const MAX_BYTES = 5 * 1024 * 1024;
+export const MAX_BYTES = 5 * 1024 * 1024;
 const PRIVATE_LINK_SECONDS = 5 * 60;
 
-const KINDS = {
+export const KINDS = {
   licence: { type: "authenticated", formats: ["pdf", "jpg", "png"], folder: "agridrone/licences" },
   portfolio: { type: "upload", formats: ["jpg", "png", "webp"], folder: "agridrone/portfolio" },
+  avatar: { type: "upload", formats: ["jpg", "png", "webp"], folder: "agridrone/avatars" },
 } as const satisfies Record<string, { type: DeliveryType; formats: readonly string[]; folder: string }>;
-type Kind = keyof typeof KINDS;
+export type Kind = keyof typeof KINDS;
 
-const ownFolder = (kind: Kind, userId: string) => `${KINDS[kind].folder}/${userId}/`;
+export const ownFolder = (kind: Kind, userId: string) => `${KINDS[kind].folder}/${userId}/`;
 
 /**
  * Confirms the client really uploaded this file to this user's folder, and that
  * Cloudinary's own record of it passes our type/size rules. Bad files are deleted.
  */
-async function verifyUpload(storage: Storage, kind: Kind, userId: string, publicId: string) {
+export async function verifyUpload(storage: Storage, kind: Kind, userId: string, publicId: string) {
   const { type, formats } = KINDS[kind];
   if (!publicId.startsWith(ownFolder(kind, userId))) throw forbidden("That file does not belong to you.");
 

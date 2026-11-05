@@ -1,12 +1,17 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { checkPassword, currentUser, hashPassword, requireRole } from "../auth";
 import type { Db, Queryable } from "../db";
 import { HttpError, parse } from "../http";
+import type { Storage } from "../storage";
 import { registerSchema } from "./auth";
+import { KINDS, MAX_BYTES, ownFolder, verifyUpload } from "./uploads";
 
-const ME_FIELDS = 'id, role, full_name AS "fullName", email, phone';
+const ME_FIELDS = `id, role, full_name AS "fullName", email, phone,
+  (SELECT url FROM uploads WHERE uploads.user_id = users.id AND kind = 'avatar') AS "avatarUrl"`;
+const DELETE_AVATAR = `DELETE FROM uploads WHERE user_id = $1 AND kind = 'avatar' RETURNING public_id AS "publicId"`;
 
 const detailsSchema = z.object({
   fullName: registerSchema.shape.fullName,
@@ -25,7 +30,7 @@ const passwordSchema = z.object({
 const wrongPassword = () => new HttpError(400, "WRONG_PASSWORD", "Your current password is incorrect.");
 
 /** The signed-in user's own account. Admins can read theirs but are managed by the system owner. */
-export function meRouter(db: Db, rateLimitMax = 20) {
+export function meRouter(db: Db, storage: Storage, rateLimitMax = 20) {
   const router = Router();
   // Both write routes can check a password, so they share the auth rate limit.
   const limited = rateLimit({ windowMs: 15 * 60 * 1000, limit: rateLimitMax, standardHeaders: "draft-8", legacyHeaders: false });
@@ -74,6 +79,39 @@ export function meRouter(db: Db, rateLimitMax = 20) {
       await tx.query("UPDATE users SET password_hash = $2 WHERE id = $1", [user.id, await hashPassword(input.newPassword)]);
       await tx.query("INSERT INTO audit_log (actor_id, action, target_type, target_id) VALUES ($1, 'password_changed', 'user', $1)", [user.id]);
     });
+    response.status(204).end();
+  });
+
+  // Profile picture: signed direct upload to Cloudinary, then attach (replacing any old one).
+  router.post("/avatar/upload-signature", requireRole("operator", "farm_owner"), (request, response) => {
+    const { type, formats } = KINDS.avatar;
+    const publicId = ownFolder("avatar", currentUser(request).id) + randomUUID();
+    response.json({ ...storage.signUpload({ publicId, type, allowedFormats: [...formats] }), maxBytes: MAX_BYTES });
+  });
+
+  router.put("/avatar", requireRole("operator", "farm_owner"), async (request, response) => {
+    const { publicId } = parse(z.object({ publicId: z.string().max(200) }), request.body);
+    const user = currentUser(request);
+    const file = await verifyUpload(storage, "avatar", user.id, publicId);
+
+    const replaced = await db.transaction(async (tx) => {
+      const { rows: old } = await tx.query<{ publicId: string }>(DELETE_AVATAR, [user.id]);
+      await tx.query("INSERT INTO uploads (user_id, kind, public_id, format, bytes, url) VALUES ($1, 'avatar', $2, $3, $4, $5)", [
+        user.id,
+        publicId,
+        file.format,
+        file.bytes,
+        file.secureUrl,
+      ]);
+      return old[0]?.publicId;
+    });
+    if (replaced && replaced !== publicId) await storage.remove(replaced, "upload");
+    response.json({ avatarUrl: file.secureUrl });
+  });
+
+  router.delete("/avatar", requireRole("operator", "farm_owner"), async (request, response) => {
+    const { rows } = await db.query<{ publicId: string }>(DELETE_AVATAR, [currentUser(request).id]);
+    if (rows[0]) await storage.remove(rows[0].publicId, "upload");
     response.status(204).end();
   });
 

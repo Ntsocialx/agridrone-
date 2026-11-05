@@ -142,7 +142,7 @@ describe("auth", () => {
     const { token, id } = await register("farm_owner");
     const me = await as(token).get("/api/v1/me");
     expect(me.status).toBe(200);
-    expect(me.body).toEqual({ id, role: "farm_owner", fullName: `Test farm_owner ${n}`, email: `user${n}@example.test`, phone: "+27 00 000 0000" });
+    expect(me.body).toEqual({ id, role: "farm_owner", fullName: `Test farm_owner ${n}`, email: `user${n}@example.test`, phone: "+27 00 000 0000", avatarUrl: null });
     expect((await request(app).get("/api/v1/me")).status).toBe(401);
   });
 
@@ -188,6 +188,27 @@ describe("editing your own account", () => {
     expect((await as(token).post("/api/v1/me/password", { currentPassword: "password123", newPassword: "brand-new-pass" })).status).toBe(204);
     expect((await request(app).post("/api/v1/auth/login").send({ email, password: "password123" })).status).toBe(401);
     expect((await request(app).post("/api/v1/auth/login").send({ email, password: "brand-new-pass" })).status).toBe(200);
+  });
+
+  it("sets, replaces and removes a profile picture", async () => {
+    const { token, id } = await register("farm_owner");
+    const sign = async () => (await as(token).post("/api/v1/me/avatar/upload-signature")).body.fields.public_id as string;
+
+    const first = await sign();
+    expect(first.startsWith(`agridrone/avatars/${id}/`)).toBe(true);
+    expect((await as(token).put("/api/v1/me/avatar", { publicId: first })).status).toBe(200);
+    expect((await as(token).get("/api/v1/me")).body.avatarUrl).toBe(`https://cdn.test/${first}.jpg`);
+
+    const second = await sign();
+    await as(token).put("/api/v1/me/avatar", { publicId: second });
+    expect(removed).toContain(first);
+    expect((await as(token).get("/api/v1/me")).body.avatarUrl).toBe(`https://cdn.test/${second}.jpg`);
+
+    const other = await register("operator");
+    expect((await as(other.token).put("/api/v1/me/avatar", { publicId: second })).status).toBe(403);
+
+    expect((await request(app).delete("/api/v1/me/avatar").set("Authorization", `Bearer ${token}`)).status).toBe(204);
+    expect((await as(token).get("/api/v1/me")).body.avatarUrl).toBeNull();
   });
 
   it("does not let admins edit through the app", async () => {

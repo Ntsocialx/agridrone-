@@ -7,7 +7,7 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://agridrone-api
 
 export type Role = "operator" | "farm_owner" | "admin";
 export type User = { id: string; role: Role; fullName: string };
-export type Me = User & { email: string; phone: string };
+export type Me = User & { email: string; phone: string; avatarUrl: string | null };
 export type Service = "Mapping" | "Monitoring" | "Surveying" | "Spraying";
 export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected";
 export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled" | "removed";
@@ -200,9 +200,9 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 export type PickedFile = { uri: string; name: string; mimeType: string };
 
 /** Signed direct upload: the file goes phone → Cloudinary; the API secret stays on the server. */
-export async function uploadFile(kind: "licence" | "portfolio", file: PickedFile): Promise<string> {
+export async function uploadFile(kind: "licence" | "portfolio" | "avatar", file: PickedFile): Promise<string> {
   const { uploadUrl, fields } = await api<{ uploadUrl: string; fields: Record<string, string | number> }>(
-    `/operators/me/${kind}/upload-signature`,
+    kind === "avatar" ? "/me/avatar/upload-signature" : `/operators/me/${kind}/upload-signature`,
     { method: "POST" },
   );
   const form = new FormData();

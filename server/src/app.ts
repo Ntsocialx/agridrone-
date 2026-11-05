@@ -38,7 +38,7 @@ export function createApp({ db, storage, mailer = null, jwtSecret, authRateLimit
   const authed = requireAuth(db, jwtSecret);
   app.use("/api/v1", systemRouter(db));
   app.use("/api/v1/auth", authRouter(db, jwtSecret, mailer, authRateLimit));
-  app.use("/api/v1/me", authed, meRouter(db, authRateLimit));
+  app.use("/api/v1/me", authed, meRouter(db, storage, authRateLimit));
   app.use("/api/v1/jobs", authed, jobsRouter(db));
   app.use("/api/v1/jobs", authed, jobReportsRouter(db));
   app.use("/api/v1/notifications", authed, notificationsRouter(db));

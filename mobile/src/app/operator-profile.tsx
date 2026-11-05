@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AccountCard } from "../components/AccountCard";
+import { ProfilePhoto } from "../components/ProfilePhoto";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading, SignOutButton } from "../components/ui";
 import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PickedFile, type PilotProfile, type Service } from "../lib/api";
 import { useApi, useUser } from "../lib/session";
@@ -147,7 +148,6 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     });
   };
 
-  const initials = user.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const statusCopy = STATUS_COPY[p.verificationStatus];
 
   return (
@@ -160,8 +160,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
       />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center mb-6">
-          <View className="w-14 h-14 rounded-full bg-lime-soft items-center justify-center mr-4">
-            <Text className="text-forest-950 font-bold text-xl">{initials}</Text>
+          <View className="mr-4">
+            <ProfilePhoto name={user.fullName} size={56} />
           </View>
           <View className="flex-1">
             <Text className="text-forest-950 font-bold text-lg">{user.fullName}</Text>
