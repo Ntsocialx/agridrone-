@@ -189,8 +189,14 @@ export async function uploadFile(kind: "licence" | "portfolio", file: PickedFile
   );
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(key, String(value));
-  // React Native's FormData accepts a { uri, name, type } file descriptor.
-  form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+  if (Platform.OS === "web") {
+    // Browsers need the real bytes; the picker gives a blob:/data: URL we can read back.
+    const blob = await (await fetch(file.uri)).blob();
+    form.append("file", blob, file.name);
+  } else {
+    // React Native's FormData accepts a { uri, name, type } file descriptor.
+    form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+  }
 
   let response: Response;
   try {

@@ -40,6 +40,15 @@ async function pickPdf(): Promise<PickedFile | null> {
   return { uri: file.uri, name: file.name, mimeType: "application/pdf" };
 }
 
+/** Web has no action sheet, so the browser's file chooser offers PDF and photos together. */
+async function pickLicenceOnWeb(): Promise<PickedFile | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"] });
+  if (result.canceled) return null;
+  const file = result.assets[0];
+  if (file.size && file.size > MAX_BYTES) throw tooBig();
+  return { uri: file.uri, name: file.name, mimeType: file.mimeType ?? "application/pdf" };
+}
+
 export default function OperatorProfileScreen() {
   const profile = useApi<OperatorProfile>("/operators/me");
   if (!profile.data) {
@@ -98,7 +107,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
 
   // Most people keep a licence photo in their camera roll, not in Files.
   const pickLicence = () =>
-    Alert.alert("Upload your licence", "Choose a photo of it, or a PDF copy.", [
+    Platform.OS === "web" ? uploadLicence(pickLicenceOnWeb) : Alert.alert("Upload your licence", "Choose a photo of it, or a PDF copy.", [
       { text: "Photo from library", onPress: () => uploadLicence(pickPhoto) },
       { text: "PDF file", onPress: () => uploadLicence(pickPdf) },
       { text: "Cancel", style: "cancel" },
@@ -113,11 +122,19 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
       await pilot.reload();
     });
 
+  const deletePhoto = (id: string) =>
+    run("photo", async () => {
+      await api(`/operators/me/portfolio/${id}`, { method: "DELETE" });
+      await pilot.reload();
+    });
+  // Alert buttons do nothing on web, so the browser uses its own confirm dialog.
   const removePhoto = (id: string) =>
-    Alert.alert("Remove this photo?", "It will be deleted from your public profile.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => run("photo", async () => { await api(`/operators/me/portfolio/${id}`, { method: "DELETE" }); await pilot.reload(); }) },
-    ]);
+    Platform.OS === "web"
+      ? window.confirm("Remove this photo? It will be deleted from your public profile.") && deletePhoto(id)
+      : Alert.alert("Remove this photo?", "It will be deleted from your public profile.", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Remove", style: "destructive", onPress: () => deletePhoto(id) },
+        ]);
 
   const onSubmit = () => {
     setSubmitted(true);
