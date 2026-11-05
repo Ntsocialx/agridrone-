@@ -2,6 +2,8 @@
 module.exports = {
   content: ["./src/app/**/*.{js,jsx,ts,tsx}", "./src/components/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
+  // "class" lets Expo apply app.json's light-only setting on web without NativeWind throwing.
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
