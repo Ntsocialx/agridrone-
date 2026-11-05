@@ -201,8 +201,10 @@ export async function uploadFile(kind: "licence" | "portfolio", file: PickedFile
   let response: Response;
   try {
     response = await trackSlow(fetch(uploadUrl, { method: "POST", body: form }));
-  } catch {
-    throw new ApiError("Upload failed. Check your connection and try again.", 0);
+  } catch (e) {
+    // Keep the low-level reason (e.g. "Network request failed") so failures can be diagnosed from a screenshot.
+    const detail = e instanceof Error ? ` (${e.message})` : "";
+    throw new ApiError(`Upload failed. Check your connection and try again.${detail}`, 0);
   }
   if (!response.ok) {
     // Cloudinary explains rejections (e.g. "Image file format heic not allowed").
