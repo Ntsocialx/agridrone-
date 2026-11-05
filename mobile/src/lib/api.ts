@@ -10,7 +10,7 @@ export type User = { id: string; role: Role; fullName: string };
 export type Me = User & { email: string; phone: string };
 export type Service = "Mapping" | "Monitoring" | "Surveying" | "Spraying";
 export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected";
-export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled";
+export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled" | "removed";
 
 export const SERVICES: Service[] = ["Mapping", "Monitoring", "Surveying", "Spraying"];
 // Mirrors the server: restricted services are held, never biddable.
@@ -34,6 +34,18 @@ export type Job = {
   completedAt: string | null;
   bidCount: number;
   reviewed: boolean;
+  removedReason: string | null;
+};
+
+export type NotificationKind = "announcement" | "update" | "job" | "verification" | "review" | "report";
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  jobId: string | null;
+  createdAt: string;
+  read: boolean;
 };
 
 export type Bid = {

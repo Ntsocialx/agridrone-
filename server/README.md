@@ -82,6 +82,17 @@ Errors are `{ "error": { "code", "message" } }`.
 | GET | `/admin/operators/:id/licence` | admin | 5-minute private link; audited |
 | GET | `/admin/reviews/reports` | admin | open reports |
 | POST | `/admin/reviews/:id/moderation` | admin | `{ action: "hide" \| "keep" }`; audited |
+| GET | `/notifications` | signed in | latest 50: personal notices + admin broadcasts, with `read` |
+| GET | `/notifications/unread-count` | signed in | `{ count }` for the bell |
+| POST | `/notifications/read-all` | signed in | marks everything read |
+| POST | `/jobs/:id/reports` | pilot, farm owner | `{ category, note }`; not your own job; once per job |
+| GET/POST | `/admin/notifications` | admin | broadcast history / send `{ kind, title, body }` (kind `announcement` or `update`); audited |
+| GET | `/admin/job-reports` | admin | open job reports |
+| POST | `/admin/job-reports/:id/decision` | admin | `{ action, note }` (action `dismiss`, `resolve`, `remove_job` or `suspend_owner`); note required to remove/suspend; reporters notified; audited |
+| GET | `/admin/users/suspended` | admin | suspended accounts |
+| POST | `/admin/users/:id/unsuspend` | admin | audited |
+
+Suspended accounts get `ACCOUNT_SUSPENDED` (403 at sign-in, 401 on a live session) with `SUPPORT_EMAIL` in the message; a suspended owner's open jobs are hidden from the marketplace until unsuspended.
 
 Set `CORS_ORIGINS` to a comma-separated list of trusted browser origins.
 Native mobile requests do not require a browser CORS origin.

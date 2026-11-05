@@ -25,6 +25,8 @@ function RootStack() {
         <Stack.Screen name="owner-profile" />
         <Stack.Screen name="edit-details" />
         <Stack.Screen name="change-password" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="report-job" />
         <Stack.Screen name="my-jobs" />
         <Stack.Screen name="post-job" />
         <Stack.Screen name="job-details" />

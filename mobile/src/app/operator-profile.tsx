@@ -156,6 +156,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         title={p.verificationStatus === "not_submitted" ? "Complete profile" : "Your profile"}
         subtitle={p.verificationStatus === "not_submitted" ? "Step 2 of 2" : undefined}
         fallback="/operator-home"
+        bell
       />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center mb-6">

@@ -16,6 +16,8 @@ const environmentSchema = z.object({
   BREVO_API_KEY: z.string().min(1).optional(),
   MAIL_FROM_EMAIL: z.email().optional(),
   MAIL_FROM_NAME: z.string().min(1).default("AgriDrone"),
+  // Shown to suspended users so they know where to appeal.
+  SUPPORT_EMAIL: z.email().optional(),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

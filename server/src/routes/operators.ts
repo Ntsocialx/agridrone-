@@ -3,6 +3,7 @@ import { z } from "zod";
 import { currentUser, requireRole } from "../auth";
 import type { Db } from "../db";
 import { conflict, idParam, notFound, parse } from "../http";
+import { notify } from "../notify";
 import { BIDDABLE_SERVICES } from "./jobs";
 
 const PROFILE_FIELDS = `
@@ -101,6 +102,11 @@ export function adminRouter(db: Db) {
         "INSERT INTO audit_log (actor_id, action, target_type, target_id, detail) VALUES ($1, $2, 'operator', $3, $4)",
         [admin.id, `verification_${input.decision}`, operatorId, reason],
       );
+      if (input.decision === "approved") {
+        await notify(tx, operatorId, "verification", "You're verified", "Your licence was approved. You can now bid on jobs.");
+      } else {
+        await notify(tx, operatorId, "verification", "Verification not approved", `Reason: ${reason}. Update your profile and submit again.`);
+      }
       return rows[0];
     });
     response.json(profile);

@@ -508,3 +508,111 @@ describe("password reset", () => {
     expect((await request(noMail).post("/api/v1/auth/password/forgot").send({ email: "x@example.test" })).status).toBe(503);
   });
 });
+
+describe("notifications", () => {
+  const unread = async (token: string) => (await as(token).get("/api/v1/notifications/unread-count")).body.count as number;
+
+  it("lets only admins broadcast, and everyone sees it until they read it", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const before = await unread(owner.token);
+
+    expect((await as(owner.token).post("/api/v1/admin/notifications", { kind: "update", title: "Hi", body: "Not allowed" })).status).toBe(403);
+    const sent = await as(admin).post("/api/v1/admin/notifications", { kind: "update", title: "New version", body: "Uploads are faster now." });
+    expect(sent.status).toBe(201);
+
+    expect(await unread(owner.token)).toBe(before + 1);
+    const list = await as(owner.token).get("/api/v1/notifications");
+    expect(list.body[0]).toMatchObject({ kind: "update", title: "New version", read: false });
+    expect((await as(owner.token).post("/api/v1/notifications/read-all")).status).toBe(204);
+    expect(await unread(owner.token)).toBe(0);
+  });
+
+  it("tells people about job activity and verification results", async () => {
+    const admin = await createAdmin();
+    const operator = await approvedOperator(admin);
+    const owner = await register("farm_owner");
+    await as(operator.token).post("/api/v1/notifications/read-all");
+    await as(owner.token).post("/api/v1/notifications/read-all");
+
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    const bid = await as(operator.token).post(`/api/v1/jobs/${job.body.id}/bids`, BID);
+    expect((await as(owner.token).get("/api/v1/notifications")).body[0]).toMatchObject({ kind: "job", title: "New bid on your job", jobId: job.body.id });
+
+    await as(owner.token).post(`/api/v1/jobs/${job.body.id}/select`, { bidId: bid.body.id });
+    expect((await as(operator.token).get("/api/v1/notifications")).body[0].title).toBe("You've been selected");
+
+    const rejected = await register("operator");
+    await as(rejected.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
+    await attachLicence(rejected.token);
+    await as(rejected.token).post("/api/v1/operators/me/submit");
+    await as(admin).post(`/api/v1/admin/operators/${rejected.id}/decision`, { decision: "rejected", reason: "Licence photo is blurry" });
+    const notes = (await as(rejected.token).get("/api/v1/notifications")).body;
+    expect(notes[0]).toMatchObject({ kind: "verification", title: "Verification not approved" });
+    expect(notes[0].body).toContain("Licence photo is blurry");
+  });
+});
+
+describe("job violation reports", () => {
+  it("lets others report a job once, never the owner", async () => {
+    const owner = await register("farm_owner");
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    const reporter = await register("operator");
+    const report = { category: "fraud", note: "Asks pilots to pay a deposit first." };
+
+    expect((await as(owner.token).post(`/api/v1/jobs/${job.body.id}/reports`, report)).status).toBe(403);
+    expect((await as(reporter.token).post(`/api/v1/jobs/${job.body.id}/reports`, { category: "spam", note: "Not a real category" })).status).toBe(400);
+    expect((await as(reporter.token).post(`/api/v1/jobs/${job.body.id}/reports`, report)).status).toBe(201);
+    expect((await as(reporter.token).post(`/api/v1/jobs/${job.body.id}/reports`, report)).status).toBe(409);
+  });
+
+  it("removes a reported job, tells the owner why, and updates every reporter", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    const first = await register("operator");
+    const second = await register("operator");
+    await as(first.token).post(`/api/v1/jobs/${job.body.id}/reports`, { category: "fake_listing", note: "This farm does not exist." });
+    await as(second.token).post(`/api/v1/jobs/${job.body.id}/reports`, { category: "fraud", note: "Same post seen as a scam elsewhere." });
+
+    const open = (await as(admin).get("/api/v1/admin/job-reports")).body.filter((r: { jobId: string }) => r.jobId === job.body.id);
+    expect(open).toHaveLength(2);
+    expect((await as(admin).post(`/api/v1/admin/job-reports/${open[0].id}/decision`, { action: "remove_job" })).status).toBe(400);
+    expect((await as(admin).post(`/api/v1/admin/job-reports/${open[0].id}/decision`, { action: "remove_job", note: "Fake listing" })).status).toBe(200);
+
+    const removed = await as(owner.token).get(`/api/v1/jobs/${job.body.id}`);
+    expect(removed.body).toMatchObject({ status: "removed", removedReason: "Fake listing" });
+    expect((await as(first.token).get(`/api/v1/jobs/${job.body.id}`)).status).toBe(404);
+    expect((await as(owner.token).get("/api/v1/notifications")).body[0].title).toBe("Job post removed");
+    for (const reporter of [first, second]) {
+      expect((await as(reporter.token).get("/api/v1/notifications")).body[0]).toMatchObject({ kind: "report", title: "Update on your report" });
+    }
+    const left = (await as(admin).get("/api/v1/admin/job-reports")).body.filter((r: { jobId: string }) => r.jobId === job.body.id);
+    expect(left).toHaveLength(0);
+  });
+
+  it("suspends the owner: no sign-in, open jobs hidden, then restores on unsuspend", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const ownerEmail = `user${n}@example.test`;
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    const reporter = await register("operator");
+    await as(reporter.token).post(`/api/v1/jobs/${job.body.id}/reports`, { category: "harassment", note: "Abusive messages to pilots." });
+    const report = (await as(admin).get("/api/v1/admin/job-reports")).body.find((r: { jobId: string }) => r.jobId === job.body.id);
+
+    await as(admin).post(`/api/v1/admin/job-reports/${report.id}/decision`, { action: "suspend_owner", note: "Harassment" });
+
+    const login = await request(app).post("/api/v1/auth/login").send({ email: ownerEmail, password: "password123" });
+    expect(login.status).toBe(403);
+    expect(login.body.error.code).toBe("ACCOUNT_SUSPENDED");
+    expect((await as(owner.token).get("/api/v1/jobs/mine")).status).toBe(401);
+    const market = (await as(reporter.token).get("/api/v1/jobs")).body as { id: string }[];
+    expect(market.some((j) => j.id === job.body.id)).toBe(false);
+
+    const suspended = (await as(admin).get("/api/v1/admin/users/suspended")).body as { id: string; reason: string }[];
+    expect(suspended.find((u) => u.id === owner.id)?.reason).toBe("Harassment");
+    expect((await as(admin).post(`/api/v1/admin/users/${owner.id}/unsuspend`)).status).toBe(204);
+    expect((await request(app).post("/api/v1/auth/login").send({ email: ownerEmail, password: "password123" })).status).toBe(200);
+    expect(((await as(reporter.token).get("/api/v1/jobs")).body as { id: string }[]).some((j) => j.id === job.body.id)).toBe(true);
+  });
+});

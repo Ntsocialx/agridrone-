@@ -35,3 +35,5 @@ services:
         sync: false
       - key: MAIL_FROM_EMAIL
         sync: false
+      - key: SUPPORT_EMAIL
+        sync: false

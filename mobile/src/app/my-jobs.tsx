@@ -27,6 +27,7 @@ function statusLine(job: Job, role: Role): string {
     if (job.status === "on_hold") return "On compliance hold";
     if (job.status === "assigned") return `${job.assignedOperatorName} is on it`;
     if (job.status === "pending_confirmation") return `${job.assignedOperatorName} finished`;
+    if (job.status === "removed") return "Removed by AgriDrone";
   } else if (job.status === "pending_confirmation") return "Waiting for the owner";
   return "";
 }

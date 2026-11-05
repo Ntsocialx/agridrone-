@@ -2,7 +2,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
-import { checkPassword, hashPassword, signToken } from "../auth";
+import { checkPassword, hashPassword, signToken, suspendedError } from "../auth";
 import type { Db } from "../db";
 import { HttpError, parse } from "../http";
 import type { Mailer } from "../mailer";
@@ -56,12 +56,14 @@ export function authRouter(db: Db, jwtSecret: string, mailer: Mailer | null, rat
 
   router.post("/login", async (request, response) => {
     const input = parse(loginSchema, request.body);
-    const { rows } = await db.query<{ id: string; role: string; fullName: string; passwordHash: string }>(
-      'SELECT id, role, full_name AS "fullName", password_hash AS "passwordHash" FROM users WHERE email = $1',
+    const { rows } = await db.query<{ id: string; role: string; fullName: string; passwordHash: string; suspended: boolean }>(
+      'SELECT id, role, full_name AS "fullName", password_hash AS "passwordHash", suspended_at IS NOT NULL AS suspended FROM users WHERE email = $1',
       [input.email],
     );
     const user = rows[0];
     if (!user || !(await checkPassword(input.password, user.passwordHash))) throw badLogin();
+    // Only revealed after a correct password, so it can't be used to probe accounts.
+    if (user.suspended) throw suspendedError();
 
     response.json({ token: signToken(user.id, jwtSecret), user: { id: user.id, role: user.role, fullName: user.fullName } });
   });
@@ -96,8 +98,9 @@ export function authRouter(db: Db, jwtSecret: string, mailer: Mailer | null, rat
     const badCode = () => new HttpError(400, "INVALID_CODE", "That code is wrong or has expired. Request a new one.");
 
     const result = await db.transaction(async (tx) => {
-      const { rows } = await tx.query<{ resetId: string; userId: string; codeHash: string; attempts: number; role: string; fullName: string }>(
-        `SELECT r.id AS "resetId", u.id AS "userId", r.code_hash AS "codeHash", r.attempts, u.role, u.full_name AS "fullName"
+      const { rows } = await tx.query<{ resetId: string; userId: string; codeHash: string; attempts: number; role: string; fullName: string; suspended: boolean }>(
+        `SELECT r.id AS "resetId", u.id AS "userId", r.code_hash AS "codeHash", r.attempts, u.role, u.full_name AS "fullName",
+           u.suspended_at IS NOT NULL AS suspended
          FROM password_resets r JOIN users u ON u.id = r.user_id
          WHERE u.email = $1 AND r.used_at IS NULL AND r.expires_at > now()
          ORDER BY r.created_at DESC LIMIT 1 FOR UPDATE OF r`,
@@ -110,6 +113,7 @@ export function authRouter(db: Db, jwtSecret: string, mailer: Mailer | null, rat
         await tx.query("UPDATE password_resets SET attempts = attempts + 1 WHERE id = $1", [reset.resetId]);
         return null;
       }
+      if (reset.suspended) throw suspendedError();
       await tx.query("UPDATE users SET password_hash = $2 WHERE id = $1", [reset.userId, await hashPassword(input.newPassword)]);
       await tx.query("UPDATE password_resets SET used_at = now() WHERE id = $1", [reset.resetId]);
       await tx.query("INSERT INTO audit_log (actor_id, action, target_type, target_id) VALUES ($1, 'password_reset', 'user', $1)", [reset.userId]);

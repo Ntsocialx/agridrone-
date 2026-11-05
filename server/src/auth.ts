@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { RequestHandler } from "express";
 import type { Db } from "./db";
+import { env } from "./config/env";
 import { HttpError, forbidden } from "./http";
 
 export type Role = "operator" | "farm_owner" | "admin";
@@ -24,6 +25,10 @@ export const signToken = (userId: string, secret: string) =>
 
 const unauthorized = () => new HttpError(401, "UNAUTHORIZED", "Please sign in again.");
 
+/** 403 at sign-in; 401 on a live session so the app signs the person out. */
+export const suspendedError = (status: 401 | 403 = 403) =>
+  new HttpError(status, "ACCOUNT_SUSPENDED", `Your account is suspended. Contact ${env.SUPPORT_EMAIL ?? "AgriDrone support"} to appeal.`);
+
 /**
  * Verifies the bearer token, then loads the user from the database so the role
  * comes from the server, never from anything the client sent.
@@ -41,12 +46,14 @@ export function requireAuth(db: Db, secret: string): RequestHandler {
     }
     if (!userId) throw unauthorized();
 
-    const { rows } = await db.query<AuthUser>(
-      'SELECT id, role, full_name AS "fullName" FROM users WHERE id = $1',
+    const { rows } = await db.query<AuthUser & { suspended: boolean }>(
+      'SELECT id, role, full_name AS "fullName", suspended_at IS NOT NULL AS suspended FROM users WHERE id = $1',
       [userId],
     );
     if (!rows[0]) throw unauthorized();
-    request.user = rows[0];
+    const { suspended, ...user } = rows[0];
+    if (suspended) throw suspendedError(401);
+    request.user = user;
     next();
   };
 }

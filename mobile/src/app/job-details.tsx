@@ -104,6 +104,13 @@ export default function JobDetailsScreen() {
             </View>
           ) : null}
 
+          {j.status === "removed" ? (
+            <View className="p-4 rounded-md border border-danger bg-danger/10 mb-6">
+              <Text className="text-danger font-bold mb-1">Removed by AgriDrone</Text>
+              <Text className="text-forest-950 text-sm leading-5">{j.removedReason}</Text>
+            </View>
+          ) : null}
+
           <View className="flex-row gap-3 mb-6">
             {[
               ["Location", j.location],
@@ -130,6 +137,16 @@ export default function JobDetailsScreen() {
               </Pressable>
             ) : null}
           </View>
+
+          {!isOwner && user.role !== "admin" ? (
+            <Pressable
+              onPress={() => router.push({ pathname: "/report-job", params: { jobId: j.id, title: j.title } })}
+              accessibilityRole="button"
+              className="self-center mt-6 py-2"
+            >
+              <Text className="text-muted text-sm underline">Report this job post</Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
 

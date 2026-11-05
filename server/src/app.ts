@@ -8,7 +8,9 @@ import { errorHandler } from "./middleware/error-handler";
 import { authRouter } from "./routes/auth";
 import { jobsRouter } from "./routes/jobs";
 import { meRouter } from "./routes/me";
+import { notificationsAdminRouter, notificationsRouter } from "./routes/notifications";
 import { adminRouter, operatorsRouter } from "./routes/operators";
+import { jobReportsRouter, reportsAdminRouter } from "./routes/reports";
 import { reviewsAdminRouter, reviewsRouter } from "./routes/reviews";
 import { systemRouter } from "./routes/system";
 import { licenceAdminRouter, uploadsRouter } from "./routes/uploads";
@@ -38,10 +40,14 @@ export function createApp({ db, storage, mailer = null, jwtSecret, authRateLimit
   app.use("/api/v1/auth", authRouter(db, jwtSecret, mailer, authRateLimit));
   app.use("/api/v1/me", authed, meRouter(db, authRateLimit));
   app.use("/api/v1/jobs", authed, jobsRouter(db));
+  app.use("/api/v1/jobs", authed, jobReportsRouter(db));
+  app.use("/api/v1/notifications", authed, notificationsRouter(db));
   app.use("/api/v1/operators", authed, operatorsRouter(db));
   app.use("/api/v1/operators", authed, uploadsRouter(db, storage));
   app.use("/api/v1/admin", authed, adminRouter(db));
   app.use("/api/v1/admin", authed, licenceAdminRouter(db, storage));
+  app.use("/api/v1/admin", authed, notificationsAdminRouter(db));
+  app.use("/api/v1/admin", authed, reportsAdminRouter(db));
   app.use("/api/v1/admin/reviews", authed, reviewsAdminRouter(db));
   app.use("/api/v1", authed, reviewsRouter(db));
 

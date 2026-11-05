@@ -3,6 +3,7 @@ import { z } from "zod";
 import { currentUser, requireRole } from "../auth";
 import type { Db } from "../db";
 import { conflict, forbidden, idParam, notFound, parse } from "../http";
+import { notify, quote } from "../notify";
 
 const reviewSchema = z.object({
   jobId: z.uuid(),
@@ -22,8 +23,8 @@ export function reviewsRouter(db: Db) {
     const input = parse(reviewSchema, request.body);
     const user = currentUser(request);
 
-    const { rows: jobs } = await db.query<{ status: string; ownerId: string; operatorId: string }>(
-      `SELECT status, owner_id AS "ownerId", assigned_operator_id AS "operatorId" FROM jobs WHERE id = $1`,
+    const { rows: jobs } = await db.query<{ status: string; title: string; ownerId: string; operatorId: string }>(
+      `SELECT status, title, owner_id AS "ownerId", assigned_operator_id AS "operatorId" FROM jobs WHERE id = $1`,
       [input.jobId],
     );
     const job = jobs[0];
@@ -37,6 +38,7 @@ export function reviewsRouter(db: Db) {
       [input.jobId, job.operatorId, user.id, input.rating, input.comment],
     );
     if (!rows[0]) throw conflict("You have already reviewed this job.");
+    await notify(db, job.operatorId, "review", "New review", `${user.fullName.split(" ")[0]} rated you ${input.rating}★ for ${quote(job.title)}.`, input.jobId);
     response.status(201).json(rows[0]);
   });
 
@@ -129,6 +131,14 @@ export function reviewsAdminRouter(db: Db) {
         [reviewId, action === "hide" ? "hidden" : "kept"],
       );
       if (!rows[0]) throw notFound("Reported review");
+      const { rows: review } = await tx.query<{ operatorId: string }>('SELECT operator_id AS "operatorId" FROM reviews WHERE id = $1', [reviewId]);
+      await notify(
+        tx,
+        review[0].operatorId,
+        "review",
+        "Your review report was handled",
+        action === "hide" ? "The review has been hidden from your profile." : "We checked the review and it stays visible on your profile.",
+      );
       if (action === "hide") await tx.query("UPDATE reviews SET hidden = true WHERE id = $1", [reviewId]);
       await tx.query(
         "INSERT INTO audit_log (actor_id, action, target_type, target_id) VALUES ($1, $2, 'review', $3)",

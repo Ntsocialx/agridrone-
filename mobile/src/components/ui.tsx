@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
 import { useSession } from "../lib/session";
 import { DroneSpinner } from "./DroneLoader";
+import { NotificationBell } from "./NotificationBell";
 
 export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: string }) {
   return (
@@ -111,18 +112,21 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
   );
 }
 
-export function BackHeader({ title, subtitle, fallback = "/" }: { title: string; subtitle?: string; fallback?: Href }) {
+export function BackHeader({ title, subtitle, fallback = "/", bell }: { title: string; subtitle?: string; fallback?: Href; bell?: boolean }) {
   const insets = useSafeAreaInsets();
   return (
     <View className="px-6 pb-4 bg-paper" style={{ paddingTop: insets.top + 12 }}>
-      <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        className="mb-4 self-start py-1"
-      >
-        <Text className="text-forest-700 font-bold">← Back</Text>
-      </Pressable>
+      <View className="flex-row items-center justify-between mb-4">
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          className="py-1"
+        >
+          <Text className="text-forest-700 font-bold">← Back</Text>
+        </Pressable>
+        {bell ? <NotificationBell onDark={false} /> : null}
+      </View>
       <Text className="text-forest-950 text-3xl font-bold">{title}</Text>
       {subtitle ? <Text className="text-muted text-base mt-1">{subtitle}</Text> : null}
     </View>
@@ -132,10 +136,17 @@ export function BackHeader({ title, subtitle, fallback = "/" }: { title: string;
 /** Dark evergreen header used on each role's home screens. */
 export function HeroHeader({ eyebrow, title, children }: { eyebrow: string; title: string; children?: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const { user } = useSession();
   return (
     <View className="bg-forest-900 pb-6 px-6 rounded-b-lg" style={{ paddingTop: insets.top + 16 }}>
-      <Text className="text-lime text-sm font-bold mb-1">{eyebrow}</Text>
-      <Text className="text-white text-3xl font-bold" numberOfLines={1}>{title}</Text>
+      <View className="flex-row items-start">
+        <View className="flex-1 mr-3">
+          <Text className="text-lime text-sm font-bold mb-1">{eyebrow}</Text>
+          <Text className="text-white text-3xl font-bold" numberOfLines={1}>{title}</Text>
+        </View>
+        {/* Admins send notifications from their console rather than receive them. */}
+        {user && user.role !== "admin" ? <NotificationBell /> : null}
+      </View>
       {children}
     </View>
   );
@@ -148,6 +159,7 @@ const STATUS_LABELS: Record<JobStatus, [string, string]> = {
   pending_confirmation: ["Awaiting confirmation", "bg-lime-soft text-forest-950"],
   completed: ["Completed", "bg-cream text-forest-900"],
   cancelled: ["Cancelled", "bg-cream text-muted"],
+  removed: ["Removed", "bg-danger text-white"],
 };
 
 export function StatusPill({ status }: { status: JobStatus }) {

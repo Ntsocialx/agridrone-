@@ -3,6 +3,7 @@ import { z } from "zod";
 import { currentUser, requireRole, type AuthUser } from "../auth";
 import type { Db, Queryable } from "../db";
 import { conflict, forbidden, idParam, notFound, parse } from "../http";
+import { notify, quote } from "../notify";
 
 export const SERVICES = ["Mapping", "Monitoring", "Surveying", "Spraying"] as const;
 // Restricted/high-risk services stay on compliance hold: visible, never biddable
@@ -15,12 +16,12 @@ const JOB_FIELDS = `
   to_char(j.preferred_date, 'YYYY-MM-DD') AS "preferredDate", j.budget_zar AS "budgetZar",
   j.brief, j.status, j.owner_id AS "ownerId", o.full_name AS "postedBy",
   j.assigned_operator_id AS "assignedOperatorId", a.full_name AS "assignedOperatorName",
-  j.created_at AS "createdAt", j.completed_at AS "completedAt",
+  j.created_at AS "createdAt", j.completed_at AS "completedAt", j.removed_reason AS "removedReason",
   (SELECT count(*)::int FROM bids b WHERE b.job_id = j.id) AS "bidCount",
   EXISTS (SELECT 1 FROM reviews r WHERE r.job_id = j.id) AS "reviewed"`;
 const JOB_FROM = "FROM jobs j JOIN users o ON o.id = j.owner_id LEFT JOIN users a ON a.id = j.assigned_operator_id";
 
-type JobRow = { id: string; status: string; ownerId: string; assignedOperatorId: string | null };
+type JobRow = { id: string; title: string; status: string; ownerId: string; postedBy: string; assignedOperatorId: string | null; assignedOperatorName: string | null };
 
 const jobSchema = z.object({
   title: z.string().trim().min(4).max(120),
@@ -51,6 +52,12 @@ async function loadJob(db: Queryable, id: unknown): Promise<JobRow & Record<stri
   return rows[0];
 }
 
+// A suspended owner's open jobs drop out of the marketplace until the suspension is lifted.
+async function ownerSuspended(db: Queryable, ownerId: string) {
+  const { rows } = await db.query<{ suspended: boolean }>("SELECT suspended_at IS NOT NULL AS suspended FROM users WHERE id = $1", [ownerId]);
+  return rows[0]?.suspended ?? false;
+}
+
 const isParticipant = (job: JobRow, user: AuthUser) =>
   user.role === "admin" || job.ownerId === user.id || job.assignedOperatorId === user.id;
 
@@ -62,7 +69,7 @@ export function jobsRouter(db: Db) {
     const { service, q } = parse(listSchema, request.query);
     const { rows } = await db.query(
       `SELECT ${JOB_FIELDS} ${JOB_FROM}
-       WHERE j.status IN ('open', 'on_hold')
+       WHERE j.status IN ('open', 'on_hold') AND o.suspended_at IS NULL
          AND ($1::text IS NULL OR j.service = $1)
          AND ($2::text IS NULL OR j.title ILIKE '%' || $2 || '%' OR j.location ILIKE '%' || $2 || '%')
        ORDER BY j.created_at DESC LIMIT 100`,
@@ -95,7 +102,7 @@ export function jobsRouter(db: Db) {
   router.get("/:id", async (request, response) => {
     const user = currentUser(request);
     const job = await loadJob(db, request.params.id);
-    const isPublic = job.status === "open" || job.status === "on_hold";
+    const isPublic = (job.status === "open" || job.status === "on_hold") && !(await ownerSuspended(db, job.ownerId));
     if (!isPublic && !isParticipant(job, user)) throw notFound("Job");
 
     // Owners/admins see every bid; an operator sees only their own.
@@ -117,7 +124,7 @@ export function jobsRouter(db: Db) {
     const job = await loadJob(db, request.params.id);
 
     if (job.status === "on_hold") throw forbidden("This job is on compliance hold and is not accepting bids.");
-    if (job.status !== "open") throw conflict("This job is no longer accepting bids.");
+    if (job.status !== "open" || (await ownerSuspended(db, job.ownerId))) throw conflict("This job is no longer accepting bids.");
     const { rows: profile } = await db.query<{ status: string }>(
       "SELECT verification_status AS status FROM operator_profiles WHERE user_id = $1",
       [user.id],
@@ -131,6 +138,7 @@ export function jobsRouter(db: Db) {
       [job.id, user.id, input.amountZar, input.days, input.message],
     );
     if (!rows[0]) throw conflict("You have already bid on this job.");
+    await notify(db, job.ownerId, "job", "New bid on your job", `${user.fullName} bid R ${input.amountZar} on ${quote(job.title)}.`, job.id);
     response.status(201).json(rows[0]);
   });
 
@@ -147,9 +155,9 @@ export function jobsRouter(db: Db) {
       if (!bid[0]) throw notFound("Bid");
 
       // The status guard makes a second, concurrent selection a no-op.
-      const { rows: job } = await tx.query(
+      const { rows: job } = await tx.query<{ title: string }>(
         `UPDATE jobs SET status = 'assigned', assigned_operator_id = $3
-         WHERE id = $1 AND owner_id = $2 AND status = 'open' RETURNING id`,
+         WHERE id = $1 AND owner_id = $2 AND status = 'open' RETURNING title`,
         [jobId, user.id, bid[0].operatorId],
       );
       if (!job[0]) throw conflict("This job is not open for selection.");
@@ -162,6 +170,7 @@ export function jobsRouter(db: Db) {
         "INSERT INTO audit_log (actor_id, action, target_type, target_id, detail) VALUES ($1, 'operator_selected', 'job', $2, $3)",
         [user.id, jobId, bidId],
       );
+      await notify(tx, bid[0].operatorId, "job", "You've been selected", `${user.fullName} chose you for ${quote(job[0].title)}.`, jobId);
     });
     response.json(await loadJob(db, jobId));
   });
@@ -179,7 +188,13 @@ export function jobsRouter(db: Db) {
           [jobId, currentUser(request).id, to, from],
         );
         if (!rows[0]) throw conflict(`Only jobs that are '${from}' can be moved to '${to}'.`);
-        response.json(await loadJob(db, jobId));
+        const job = await loadJob(db, jobId);
+        if (role === "operator") {
+          await notify(db, job.ownerId, "job", "Job marked complete", `${job.assignedOperatorName} says ${quote(job.title)} is done. Confirm it to close the job.`, jobId);
+        } else if (job.assignedOperatorId) {
+          await notify(db, job.assignedOperatorId, "job", "Job confirmed complete", `${job.postedBy} confirmed ${quote(job.title)}. It now shows on your profile.`, jobId);
+        }
+        response.json(job);
       },
     );
   transition("operator", "assigned", "pending_confirmation", "assigned_operator_id");
