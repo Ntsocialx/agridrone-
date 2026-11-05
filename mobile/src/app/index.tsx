@@ -3,9 +3,9 @@ import { Animated, Easing, Text, View, Pressable, ImageBackground, Image } from 
 import { Redirect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-import { Drone, useReduceMotion } from "../components/DroneLoader";
-import { Button, LegalFooter } from "../components/ui";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { useReduceMotion } from "../components/DroneLoader";
+import { LegalFooter } from "../components/ui";
 import { homeFor, useSession } from "../lib/session";
 
 // Young maize rows at golden hour, from Unsplash (Unsplash License).
@@ -24,22 +24,17 @@ export default function WelcomeScreen() {
 function Welcome() {
   const insets = useSafeAreaInsets();
   const still = useReduceMotion();
-  // One opening sequence: the drone flies in, its scan beam lands on the badge, then the name and actions appear.
-  const [drone, beam, badge, title, actions, glow] = useState(() => Array.from({ length: 6 }, () => new Animated.Value(0)))[0];
+  // One opening sequence: the badge grows in, then the name, then the actions.
+  const [badge, title, actions, glow] = useState(() => Array.from({ length: 4 }, () => new Animated.Value(0)))[0];
 
   useEffect(() => {
     if (still) {
-      [drone, beam, badge, title, actions].forEach((v) => v.setValue(1));
+      [badge, title, actions].forEach((v) => v.setValue(1));
       return;
     }
-    const ease = Easing.out(Easing.cubic);
-    const step = (v: Animated.Value, duration: number) => Animated.timing(v, { toValue: 1, duration, easing: ease, useNativeDriver: true });
-    Animated.sequence([
-      Animated.parallel([step(drone, 900), Animated.sequence([Animated.delay(250), step(badge, 650)])]),
-      step(beam, 400),
-      step(title, 450),
-      step(actions, 400),
-    ]).start();
+    const step = (v: Animated.Value, duration: number) =>
+      Animated.timing(v, { toValue: 1, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    Animated.sequence([step(badge, 700), step(title, 450), step(actions, 400)]).start();
 
     const pulse = Animated.loop(
       Animated.sequence([
@@ -49,7 +44,7 @@ function Welcome() {
     );
     pulse.start();
     return () => pulse.stop();
-  }, [still, drone, beam, badge, title, actions, glow]);
+  }, [still, badge, title, actions, glow]);
 
   const rise = (v: Animated.Value, from: number) => ({
     opacity: v,
@@ -74,23 +69,6 @@ function Welcome() {
 
       <View className="flex-1 px-6" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 20 }}>
         <View className="flex-1 items-center justify-center">
-          <Animated.View style={rise(drone, -80)}>
-            <Drone scale={0.85} still={still} />
-          </Animated.View>
-
-          {/* Camera beam from the drone onto the badge. */}
-          <Animated.View style={{ opacity: beam, marginTop: -6, marginBottom: -26, zIndex: 1 }}>
-            <Svg width={150} height={64}>
-              <Defs>
-                <LinearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor="#b8f13e" stopOpacity={0.45} />
-                  <Stop offset="1" stopColor="#b8f13e" stopOpacity={0} />
-                </LinearGradient>
-              </Defs>
-              <Path d="M68 0 L82 0 L150 64 L0 64 Z" fill="url(#beam)" />
-            </Svg>
-          </Animated.View>
-
           <Animated.View
             className="items-center justify-center"
             style={{
@@ -100,7 +78,7 @@ function Welcome() {
               transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
             }}
           >
-            {/* Sun glow echoing the sun in the logo; it breathes slowly. */}
+            {/* Two sun rings echoing the sun in the logo; the outer one breathes slowly. */}
             <Animated.View
               style={{
                 position: "absolute",
@@ -119,8 +97,6 @@ function Welcome() {
                 width: BADGE,
                 height: BADGE,
                 borderRadius: BADGE / 2,
-                borderWidth: 3,
-                borderColor: "#b8f13e",
                 shadowColor: "#000",
                 shadowOpacity: 0.3,
                 shadowRadius: 18,
@@ -146,16 +122,27 @@ function Welcome() {
           </Animated.View>
         </View>
 
-        <Animated.View style={rise(actions, 24)}>
-          <Button label="Get started" onPress={() => router.push("/register")} />
+        <Animated.View style={[{ alignItems: "center" }, rise(actions, 24)]}>
+          {/* Compact pill with a soft lime glow instead of the full-width form button. */}
+          <Pressable
+            onPress={() => router.push("/register")}
+            accessibilityRole="button"
+            className="bg-lime rounded-full flex-row items-center active:opacity-80"
+            style={{ paddingLeft: 28, paddingRight: 8, height: 52, shadowColor: "#b8f13e", shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+          >
+            <Text className="text-forest-950 font-bold text-base mr-4">Get started</Text>
+            <View className="bg-forest-950 rounded-full items-center justify-center" style={{ width: 36, height: 36 }}>
+              <Text className="text-lime font-bold text-lg" style={{ marginTop: -2 }}>›</Text>
+            </View>
+          </Pressable>
 
-          <Pressable className="mt-3 py-3 items-center" onPress={() => router.push("/login")} accessibilityRole="button">
+          <Pressable className="mt-4 py-2 items-center" onPress={() => router.push("/login")} accessibilityRole="button">
             <Text className="text-white/80 text-sm">
               Already have an account? <Text className="text-lime font-bold">Sign in</Text>
             </Text>
           </Pressable>
 
-          <View className="mt-3">
+          <View className="mt-4">
             <LegalFooter onDark />
           </View>
         </Animated.View>
