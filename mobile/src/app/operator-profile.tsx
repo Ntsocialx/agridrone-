@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Image, Text, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, Image, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -12,7 +13,7 @@ import { useApi, useUser } from "../lib/session";
 const STATUS_COPY = {
   not_submitted: null,
   in_review: "Your licence is with the admin team for review. You can bid once it's approved.",
-  approved: "Verified by the AgriDrone admin team. This is an internal check, not aviation authority approval.",
+  approved: "Verified by the AgricDrone Hub admin team. This is an internal check, not aviation authority approval.",
   rejected: "Your application needs changes. Update your details and resubmit.",
 };
 
@@ -164,23 +165,23 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
             <ProfilePhoto name={user.fullName} size={56} />
           </View>
           <View className="flex-1">
-            <Text className="text-forest-950 font-bold text-lg">{user.fullName}</Text>
-            <Text className="text-muted text-xs uppercase font-bold">{p.verificationStatus.replace("_", " ")}</Text>
+            <Text className="text-ink font-bold text-lg">{user.fullName}</Text>
+            <Text className="text-muted text-xs font-medium">{p.verificationStatus.replace("_", " ")}</Text>
           </View>
           <Pressable onPress={() => router.push({ pathname: "/pilot", params: { id: user.id } })} accessibilityRole="button" className="py-2">
-            <Text className="text-forest-700 font-bold text-sm">Public profile →</Text>
+            <Text className="text-teal-ink font-bold text-sm">Public profile →</Text>
           </Pressable>
         </View>
 
         {statusCopy ? (
-          <View className={`p-4 rounded-md mb-6 ${p.verificationStatus === "rejected" ? "bg-danger/10" : "bg-lime-soft"}`}>
-            <Text className="text-forest-950 text-sm">{statusCopy}</Text>
+          <View className={`p-4 rounded-md mb-6 ${p.verificationStatus === "rejected" ? "bg-danger/10" : "bg-teal-soft"}`}>
+            <Text className="text-ink text-sm">{statusCopy}</Text>
             {p.rejectionReason ? <Text className="text-danger text-sm mt-2">Reason: {p.rejectionReason}</Text> : null}
           </View>
         ) : null}
 
-        <Text className="text-forest-950 font-bold mb-3 uppercase text-xs tracking-widest">Service details</Text>
-        <View className="gap-y-4 mb-6">
+        <Text className="text-ink font-bold mb-3 text-base">Service details</Text>
+        <View className="gap-y-5 mb-6">
           <Field label="Operating base" placeholder="Town, Province" value={base} onChangeText={setBase} editable={!locked} error={submitted ? errors.base : undefined} />
           <Field label="Service radius (km)" placeholder="50" value={radius} onChangeText={setRadius} editable={!locked} keyboardType="number-pad" error={submitted ? errors.radius : undefined} />
         </View>
@@ -194,18 +195,18 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         <Text className="text-muted text-xs ml-1 mb-1">Spraying is on compliance hold and cannot be offered yet.</Text>
         {submitted && errors.services ? <Text className="text-danger text-xs ml-1">{errors.services}</Text> : null}
 
-        <Text className="text-forest-950 font-bold mt-6 mb-3 uppercase text-xs tracking-widest">Verification document</Text>
-        <View className="bg-cream p-4 rounded-md mb-4">
+        <Text className="text-ink font-bold mt-6 mb-3 text-base">Verification document</Text>
+        <View className="bg-page p-4 rounded-md mb-4">
           <Text className="text-muted text-xs leading-5">
             We collect your remote pilot licence only to check you can be listed as an operator. It is stored privately
-            and only authorised AgriDrone admins can view it, through links that expire after 5 minutes. You can ask us to
+            and only authorised AgricDrone Hub admins can view it, through links that expire after 5 minutes. You can ask us to
             access, correct or delete it at any time.
           </Text>
         </View>
         {!locked && !p.licenceAttached ? (
           <View className="mb-4">
             <Checkbox checked={uploadConsent} onChange={setUploadConsent}>
-              I consent to AgriDrone storing and reviewing my licence for operator verification.
+              I consent to AgricDrone Hub storing and reviewing my licence for operator verification.
             </Checkbox>
           </View>
         ) : null}
@@ -213,13 +214,13 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
           disabled={!uploadConsent || locked || busy !== null}
           onPress={pickLicence}
           accessibilityRole="button"
-          className={`flex-row items-center p-4 border border-dashed rounded-md ${p.licenceAttached ? "border-forest-700 bg-lime-soft" : "border-muted/40 bg-cream"} ${!uploadConsent ? "opacity-40" : ""}`}
+          className={`flex-row items-center p-4 border border-dashed rounded-md ${p.licenceAttached ? "border-teal bg-teal-soft" : "border-line bg-page"} ${!uploadConsent ? "opacity-40" : ""}`}
         >
           <View className="w-10 h-10 bg-paper rounded-md items-center justify-center mr-3">
-            <Text className="text-forest-950 font-bold text-xs">{p.licenceAttached ? "✓" : "PDF"}</Text>
+            <Text className="text-ink font-bold text-xs">{p.licenceAttached ? "✓" : "PDF"}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-forest-950 font-bold text-sm">Remote pilot licence</Text>
+            <Text className="text-ink font-bold text-sm">Remote pilot licence</Text>
             <Text className="text-muted text-xs">
               {busy === "licence"
                 ? "Uploading securely…"
@@ -231,21 +232,21 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         </Pressable>
         {submitted && errors.licence ? <Text className="text-danger text-xs mt-1 ml-1">{errors.licence}</Text> : null}
 
-        <Text className="text-forest-950 font-bold mt-8 mb-1 uppercase text-xs tracking-widest">Portfolio</Text>
+        <Text className="text-ink font-bold mt-8 mb-1 text-base">Portfolio</Text>
         <Text className="text-muted text-xs mb-3">Public photos of your work, shown on your profile to farm owners.</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
           {pilot.data?.portfolio.map((photo) => (
             <Pressable key={photo.id} onLongPress={() => removePhoto(photo.id)} accessibilityHint="Long press to remove">
-              <Image source={{ uri: photo.url }} className="w-28 h-28 rounded-md bg-cream" />
+              <Image source={{ uri: photo.url }} className="w-28 h-28 rounded-md bg-page" />
             </Pressable>
           ))}
           <Pressable
             onPress={addPhoto}
             disabled={busy !== null}
             accessibilityRole="button"
-            className="w-28 h-28 rounded-md border border-dashed border-muted/40 bg-cream items-center justify-center"
+            className="w-28 h-28 rounded-md border border-dashed border-line bg-page items-center justify-center"
           >
-            <Text className="text-forest-700 text-2xl">{busy === "photo" ? "…" : "+"}</Text>
+            <Text className="text-teal-ink text-2xl">{busy === "photo" ? "…" : "+"}</Text>
             <Text className="text-muted text-xs">Add photo</Text>
           </Pressable>
         </ScrollView>
@@ -266,7 +267,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
               disabled={busy !== null && busy !== "submit"}
             />
           )}
-          <Text className={`text-forest-950 font-bold mb-3 uppercase text-xs tracking-widest ${locked ? "" : "mt-10"}`}>Account</Text>
+          <Text className={`text-ink font-bold mb-3 text-base ${locked ? "" : "mt-10"}`}>Account</Text>
           <AccountCard />
           <View className="mt-8">
             <SignOutButton />

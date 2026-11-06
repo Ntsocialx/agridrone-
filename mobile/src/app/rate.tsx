@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, Stars } from "../components/ui";
 import { ApiError, api, type Job } from "../lib/api";
@@ -47,16 +48,16 @@ export default function RateScreen() {
           <Loading />
         ) : (
           <>
-            <View className="bg-cream p-4 rounded-md mb-8">
-              <Text className="text-muted text-xs uppercase font-bold mb-1">Completed job</Text>
-              <Text className="text-forest-950 font-bold">{j.title}</Text>
+            <View className="bg-page p-4 rounded-md mb-8">
+              <Text className="text-muted text-xs font-medium mb-1">Completed job</Text>
+              <Text className="text-ink font-bold">{j.title}</Text>
               <Text className="text-muted text-sm">{j.service} • {j.areaHa} ha</Text>
             </View>
 
             <View className="items-center mb-8">
-              <Text className="text-forest-950 font-bold text-lg mb-4">How did {j.assignedOperatorName?.split(" ")[0]} do?</Text>
+              <Text className="text-ink font-bold text-lg mb-4">How did {j.assignedOperatorName?.split(" ")[0]} do?</Text>
               <Stars value={rating} size={44} onChange={setRating} />
-              <Text className={`mt-3 font-bold ${rating ? "text-forest-700" : "text-muted"}`}>{rating ? LABELS[rating] : "Tap a star"}</Text>
+              <Text className={`mt-3 font-bold ${rating ? "text-teal-ink" : "text-muted"}`}>{rating ? LABELS[rating] : "Tap a star"}</Text>
               {submitted && errors.rating ? <Text className="text-danger text-xs mt-1">{errors.rating}</Text> : null}
             </View>
 

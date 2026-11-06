@@ -1,24 +1,28 @@
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Linking, Pressable, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
 import { useSession } from "../lib/session";
 import { DroneSpinner } from "./DroneLoader";
 import { NotificationBell } from "./NotificationBell";
+import { Text } from "./Text";
 
+const PLACEHOLDER = "#66737f99";
+
+/** White input with a thin grey border and its label above, like the HelloChoice form. */
 export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: string }) {
   return (
     <View>
-      <Text className="text-muted text-xs mb-1 ml-1">{label}</Text>
+      <Text className="text-ink text-sm font-medium mb-2">{label}</Text>
       <TextInput
-        placeholderTextColor="#64706a99"
-        className={`bg-cream border p-4 rounded-md text-forest-950 text-base ${error ? "border-danger" : "border-muted/20"} ${input.multiline ? "min-h-[96px]" : ""}`}
+        placeholderTextColor={PLACEHOLDER}
+        className={`bg-paper border px-4 py-3.5 rounded-md text-ink text-base font-normal ${error ? "border-danger" : "border-line"} ${input.multiline ? "min-h-[110px]" : ""}`}
         accessibilityLabel={label}
         textAlignVertical={input.multiline ? "top" : undefined}
         {...input}
       />
-      {error ? <Text className="text-danger text-xs mt-1 ml-1">{error}</Text> : null}
+      {error ? <Text className="text-danger text-xs mt-1.5">{error}</Text> : null}
     </View>
   );
 }
@@ -28,11 +32,11 @@ export function PasswordField({ label, error, dark, ...input }: Omit<TextInputPr
   const [visible, setVisible] = useState(false);
   return (
     <View>
-      <Text className={`text-xs mb-1 ml-1 ${dark ? "text-paper/80" : "text-muted"}`}>{label}</Text>
-      <View className={`flex-row items-center bg-cream border rounded-md ${error ? "border-danger" : "border-muted/20"}`}>
+      <Text className={`text-sm font-medium mb-2 ${dark ? "text-paper/80" : "text-ink"}`}>{label}</Text>
+      <View className={`flex-row items-center bg-paper border rounded-md ${error ? "border-danger" : "border-line"}`}>
         <TextInput
-          placeholderTextColor="#64706a99"
-          className="flex-1 p-4 text-forest-950 text-base"
+          placeholderTextColor={PLACEHOLDER}
+          className="flex-1 px-4 py-3.5 text-ink text-base font-normal"
           accessibilityLabel={label}
           secureTextEntry={!visible}
           autoCapitalize="none"
@@ -43,13 +47,13 @@ export function PasswordField({ label, error, dark, ...input }: Omit<TextInputPr
           onPress={() => setVisible((v) => !v)}
           accessibilityRole="button"
           accessibilityLabel={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
-          className="px-4 py-4"
+          className="px-4 py-3.5"
           hitSlop={8}
         >
-          <Text className="text-forest-700 font-bold text-sm">{visible ? "Hide" : "Show"}</Text>
+          <Text className="text-teal-ink font-semibold text-sm">{visible ? "Hide" : "Show"}</Text>
         </Pressable>
       </View>
-      {error ? <Text className="text-danger text-xs mt-1 ml-1">{error}</Text> : null}
+      {error ? <Text className="text-danger text-xs mt-1.5">{error}</Text> : null}
     </View>
   );
 }
@@ -63,11 +67,12 @@ type ButtonProps = {
 };
 
 export function Button({ label, onPress, variant = "primary", disabled, busy }: ButtonProps) {
+  // Primary is solid teal; outline is the site's white "Cancel" button.
   const styles = {
-    primary: ["bg-lime", "text-forest-950", "#06261c"],
-    dark: ["bg-forest-900", "text-white", "#ffffff"],
-    outline: ["bg-paper border border-forest-900", "text-forest-900", "#0a3326"],
-    danger: ["bg-paper border border-danger", "text-danger", "#c84b42"],
+    primary: ["bg-teal", "text-white", "#ffffff"],
+    dark: ["bg-teal-ink", "text-white", "#ffffff"],
+    outline: ["bg-paper border border-line", "text-ink", "#22262a"],
+    danger: ["bg-paper border border-danger", "text-danger", "#d64545"],
   }[variant];
   const inactive = disabled || busy;
   return (
@@ -76,9 +81,9 @@ export function Button({ label, onPress, variant = "primary", disabled, busy }: 
       disabled={inactive}
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive, busy }}
-      className={`py-4 px-5 rounded-md items-center active:opacity-80 ${styles[0]} ${disabled ? "opacity-40" : ""}`}
+      className={`py-3.5 px-5 rounded-md items-center active:opacity-80 ${styles[0]} ${disabled ? "opacity-40" : ""}`}
     >
-      {busy ? <ActivityIndicator color={styles[2]} /> : <Text className={`font-bold text-base ${styles[1]}`}>{label}</Text>}
+      {busy ? <ActivityIndicator color={styles[2]} /> : <Text className={`font-semibold text-base ${styles[1]}`}>{label}</Text>}
     </Pressable>
   );
 }
@@ -91,23 +96,24 @@ export function Checkbox({ checked, onChange, children }: { checked: boolean; on
       accessibilityState={{ checked }}
       className="flex-row items-start"
     >
-      <View className={`w-6 h-6 rounded border-2 items-center justify-center mr-3 mt-0.5 ${checked ? "bg-forest-900 border-forest-900" : "border-muted bg-paper"}`}>
-        {checked ? <Text className="text-lime font-bold text-xs">✓</Text> : null}
+      <View className={`w-6 h-6 rounded-sm border-2 items-center justify-center mr-3 mt-0.5 ${checked ? "bg-teal border-teal" : "border-line bg-paper"}`}>
+        {checked ? <Text className="text-white font-bold text-xs">✓</Text> : null}
       </View>
       <Text className="flex-1 text-muted text-sm leading-5">{children}</Text>
     </Pressable>
   );
 }
 
+/** Filled teal pill when selected, teal outline otherwise (the site's tab pills). */
 export function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      className={`px-4 py-2 rounded-full border ${active ? "bg-forest-900 border-forest-900" : "bg-paper border-muted/30"}`}
+      className={`px-4 py-2 rounded-full border ${active ? "bg-teal border-teal" : "bg-paper border-teal"}`}
     >
-      <Text className={`text-sm font-bold ${active ? "text-lime" : "text-forest-900"}`}>{label}</Text>
+      <Text className={`text-sm font-medium ${active ? "text-white" : "text-teal-ink"}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -115,7 +121,7 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
 export function BackHeader({ title, subtitle, fallback = "/", bell }: { title: string; subtitle?: string; fallback?: Href; bell?: boolean }) {
   const insets = useSafeAreaInsets();
   return (
-    <View className="px-6 pb-4 bg-paper" style={{ paddingTop: insets.top + 12 }}>
+    <View className="px-6 pb-5 mb-5 bg-paper border-b border-line" style={{ paddingTop: insets.top + 12 }}>
       <View className="flex-row items-center justify-between mb-4">
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
@@ -123,26 +129,26 @@ export function BackHeader({ title, subtitle, fallback = "/", bell }: { title: s
           accessibilityLabel="Back"
           className="py-1"
         >
-          <Text className="text-forest-700 font-bold">← Back</Text>
+          <Text className="text-teal-ink font-semibold">← Back</Text>
         </Pressable>
-        {bell ? <NotificationBell onDark={false} /> : null}
+        {bell ? <NotificationBell /> : null}
       </View>
-      <Text className="text-forest-950 text-3xl font-bold">{title}</Text>
+      <Text className="text-ink text-3xl font-bold">{title}</Text>
       {subtitle ? <Text className="text-muted text-base mt-1">{subtitle}</Text> : null}
     </View>
   );
 }
 
-/** Dark evergreen header used on each role's home screens. */
+/** White header with a teal eyebrow and a thin divider, used on each role's home screens. */
 export function HeroHeader({ eyebrow, title, children }: { eyebrow: string; title: string; children?: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const { user } = useSession();
   return (
-    <View className="bg-forest-900 pb-6 px-6 rounded-b-lg" style={{ paddingTop: insets.top + 16 }}>
+    <View className="bg-paper pb-5 px-6 border-b border-line" style={{ paddingTop: insets.top + 16 }}>
       <View className="flex-row items-start">
         <View className="flex-1 mr-3">
-          <Text className="text-lime text-sm font-bold mb-1">{eyebrow}</Text>
-          <Text className="text-white text-3xl font-bold" numberOfLines={1}>{title}</Text>
+          <Text className="text-teal-ink text-sm font-semibold mb-1">{eyebrow}</Text>
+          <Text className="text-ink text-3xl font-bold" numberOfLines={1}>{title}</Text>
         </View>
         {/* Admins send notifications from their console rather than receive them. */}
         {user && user.role !== "admin" ? <NotificationBell /> : null}
@@ -153,19 +159,19 @@ export function HeroHeader({ eyebrow, title, children }: { eyebrow: string; titl
 }
 
 const STATUS_LABELS: Record<JobStatus, [string, string]> = {
-  open: ["Open for bids", "bg-lime text-forest-950"],
-  on_hold: ["Compliance hold", "bg-danger text-white"],
-  assigned: ["In progress", "bg-forest-900 text-lime"],
-  pending_confirmation: ["Awaiting confirmation", "bg-lime-soft text-forest-950"],
-  completed: ["Completed", "bg-cream text-forest-900"],
-  cancelled: ["Cancelled", "bg-cream text-muted"],
+  open: ["Open for bids", "bg-teal text-white"],
+  on_hold: ["Compliance hold", "bg-sun text-ink"],
+  assigned: ["In progress", "bg-teal-ink text-white"],
+  pending_confirmation: ["Awaiting confirmation", "bg-teal-soft text-teal-ink"],
+  completed: ["Completed", "bg-field text-ink"],
+  cancelled: ["Cancelled", "bg-field text-muted"],
   removed: ["Removed", "bg-danger text-white"],
 };
 
 export function StatusPill({ status }: { status: JobStatus }) {
   const [label, style] = STATUS_LABELS[status];
   return (
-    <Text className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden self-start ${style}`}>{label}</Text>
+    <Text className={`text-xs font-bold px-2 py-0.5 rounded-sm overflow-hidden self-start ${style}`}>{label}</Text>
   );
 }
 
@@ -175,7 +181,7 @@ export function Stars({ value, size = 16, onChange }: { value: number; size?: nu
     <View className="flex-row" accessibilityLabel={`${value} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((n) => {
         const star = (
-          <Text style={{ fontSize: size, lineHeight: size * 1.2 }} className={n <= Math.round(value) ? "text-forest-700" : "text-muted/30"}>
+          <Text style={{ fontSize: size, lineHeight: size * 1.2 }} className={n <= Math.round(value) ? "text-sun" : "text-line"}>
             ★
           </Text>
         );
@@ -198,7 +204,7 @@ export function Loading() {
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <View className="bg-paper p-6 rounded-lg items-center border border-danger/30">
-      <Text className="text-forest-950 font-bold mb-1">Couldn&apos;t load this</Text>
+      <Text className="text-ink font-bold mb-1">Couldn&apos;t load this</Text>
       <Text className="text-muted text-sm text-center mb-4">{message}</Text>
       {onRetry ? <Button label="Try again" variant="outline" onPress={onRetry} /> : null}
     </View>
@@ -207,8 +213,8 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 
 export function EmptyState({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {
   return (
-    <View className="bg-paper p-6 rounded-lg items-center">
-      <Text className="text-forest-950 font-bold mb-1">{title}</Text>
+    <View className="bg-paper p-6 rounded-lg items-center border border-line">
+      <Text className="text-ink font-bold mb-1">{title}</Text>
       <Text className="text-muted text-sm text-center">{body}</Text>
       {children ? <View className="mt-4 self-stretch">{children}</View> : null}
     </View>
@@ -235,7 +241,7 @@ export function BottomNav() {
   if (!user || user.role === "admin") return null;
 
   return (
-    <View className="bg-paper border-t border-muted/20 flex-row" style={{ paddingBottom: insets.bottom }}>
+    <View className="bg-paper border-t border-line flex-row" style={{ paddingBottom: insets.bottom }}>
       {TABS[user.role].map((tab) => {
         const active = pathname === tab.path;
         return (
@@ -246,8 +252,8 @@ export function BottomNav() {
             accessibilityState={{ selected: active }}
             className="flex-1 items-center py-4"
           >
-            <View className={`h-1 w-8 rounded-full mb-2 ${active ? "bg-lime" : "bg-transparent"}`} />
-            <Text className={`text-sm ${active ? "text-forest-900 font-bold" : "text-muted"}`}>{tab.label}</Text>
+            <View className={`h-1 w-8 rounded-full mb-2 ${active ? "bg-teal" : "bg-transparent"}`} />
+            <Text className={`text-sm ${active ? "text-teal-ink font-semibold" : "text-muted font-medium"}`}>{tab.label}</Text>
           </Pressable>
         );
       })}
@@ -259,7 +265,7 @@ const TERMS_URL = "https://www.agriseta.co.za/";
 
 /** "Terms and Conditions | Powered by 4IR" line for the welcome and sign-in screens. */
 export function LegalFooter({ onDark }: { onDark?: boolean }) {
-  const tone = onDark ? "text-paper/60" : "text-muted";
+  const tone = onDark ? "text-paper/70" : "text-muted";
   return (
     <View className="flex-row justify-center items-center">
       <Pressable onPress={() => Linking.openURL(TERMS_URL)} accessibilityRole="link" hitSlop={8}>

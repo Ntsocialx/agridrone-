@@ -92,7 +92,7 @@ export function reportsAdminRouter(db: Db) {
         );
         if (!rows[0]) throw conflict("Only open or held job posts can be removed.");
         await tx.query("UPDATE bids SET status = 'declined' WHERE job_id = $1 AND status = 'pending'", [report.jobId]);
-        await notify(tx, report.ownerId, "job", "Job post removed", `${quote(report.title)} was removed by AgriDrone: ${input.note}`, report.jobId);
+        await notify(tx, report.ownerId, "job", "Job post removed", `${quote(report.title)} was removed by AgricDrone Hub: ${input.note}`, report.jobId);
       }
       if (input.action === "suspend_owner") {
         if (report.ownerRole === "admin") throw forbidden("Admin accounts can't be suspended.");

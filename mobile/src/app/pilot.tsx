@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Image, Text, View, ScrollView, Pressable } from "react-native";
+import { Alert, Image, View, ScrollView, Pressable } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,30 +18,30 @@ export default function PilotProfileScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace("/my-jobs"));
 
   return (
-    <View className="flex-1 bg-cream">
-      <StatusBar style="light" />
+    <View className="flex-1 bg-page">
+      <StatusBar style="dark" />
       <ScrollView className="flex-1" contentContainerClassName="pb-12">
-        <View className="bg-forest-900 px-6 pb-8 rounded-b-lg" style={{ paddingTop: insets.top + 12 }}>
+        <View className="bg-paper px-6 pb-8 border-b border-line" style={{ paddingTop: insets.top + 12 }}>
           <Pressable onPress={back} accessibilityRole="button" accessibilityLabel="Back" className="self-start py-1 mb-6">
-            <Text className="text-lime font-bold">← Back</Text>
+            <Text className="text-teal-ink font-semibold">← Back</Text>
           </Pressable>
 
           {p ? (
             <>
               <View className="flex-row items-center">
-                <View className="w-16 h-16 rounded-full bg-lime items-center justify-center mr-4">
-                  <Text className="text-forest-950 font-bold text-2xl">
+                <View className="w-16 h-16 rounded-full bg-teal-soft items-center justify-center mr-4">
+                  <Text className="text-teal-ink font-bold text-2xl">
                     {p.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white text-2xl font-bold">{p.fullName}</Text>
-                  <Text className="text-paper/70 text-sm">{p.base || "Drone operator"}</Text>
+                  <Text className="text-ink text-2xl font-bold">{p.fullName}</Text>
+                  <Text className="text-muted text-sm">{p.base || "Drone operator"}</Text>
                 </View>
               </View>
               {p.verificationStatus === "approved" ? (
-                <Text className="bg-lime-soft text-forest-950 text-[10px] font-bold px-3 py-1 rounded-full uppercase overflow-hidden self-start mt-4">
-                  ✓ Verified by AgriDrone
+                <Text className="bg-teal-soft text-ink text-xs font-bold px-3 py-1 rounded-full overflow-hidden self-start mt-4">
+                  ✓ Verified by AgricDrone Hub
                 </Text>
               ) : null}
 
@@ -65,7 +66,7 @@ export default function PilotProfileScreen() {
               {p.services.length ? (
                 <View className="flex-row flex-wrap gap-2 mb-8">
                   {p.services.map((s) => (
-                    <Text key={s} className="bg-paper border border-muted/20 text-forest-900 text-xs font-bold px-3 py-1.5 rounded-full overflow-hidden">
+                    <Text key={s} className="bg-paper border border-line text-ink text-xs font-bold px-3 py-1.5 rounded-full overflow-hidden">
                       {s}
                     </Text>
                   ))}
@@ -77,7 +78,7 @@ export default function PilotProfileScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 mb-8">
                   {p.portfolio.map((photo) => (
                     <View key={photo.id} className="w-56">
-                      <Image source={{ uri: photo.url }} className="w-56 h-40 rounded-md bg-forest-800" resizeMode="cover" />
+                      <Image source={{ uri: photo.url }} className="w-56 h-40 rounded-md bg-field" resizeMode="cover" />
                       {photo.caption ? <Text className="text-muted text-xs mt-1" numberOfLines={1}>{photo.caption}</Text> : null}
                     </View>
                   ))}
@@ -92,14 +93,14 @@ export default function PilotProfileScreen() {
 
               <SectionTitle title="Completed jobs" count={p.completedJobs} />
               {p.completed.length ? (
-                <View className="bg-paper rounded-lg border border-muted/10 mb-8">
+                <View className="bg-paper rounded-lg border border-line mb-8">
                   {p.completed.map((job, i) => (
-                    <View key={job.id} className={`flex-row items-center p-4 ${i ? "border-t border-muted/10" : ""}`}>
-                      <View className="w-9 h-9 rounded-md bg-lime-soft items-center justify-center mr-3">
-                        <Text className="text-forest-900 font-bold">✓</Text>
+                    <View key={job.id} className={`flex-row items-center p-4 ${i ? "border-t border-line" : ""}`}>
+                      <View className="w-9 h-9 rounded-md bg-teal-soft items-center justify-center mr-3">
+                        <Text className="text-ink font-bold">✓</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-forest-950 font-bold">{job.title}</Text>
+                        <Text className="text-ink font-bold">{job.title}</Text>
                         <Text className="text-muted text-xs">{job.service} • {job.areaHa} ha • {formatDate(job.completedAt)}</Text>
                       </View>
                     </View>
@@ -131,10 +132,10 @@ export default function PilotProfileScreen() {
 
 function Stat({ value, label, accent, children }: { value: string; label: string; accent?: boolean; children?: React.ReactNode }) {
   return (
-    <View className="flex-1 bg-forest-800 border border-forest-700 rounded-md p-3">
-      <Text className={`text-2xl font-bold ${accent ? "text-lime" : "text-white"}`}>{value}</Text>
+    <View className="flex-1 bg-page border border-line rounded-md p-3">
+      <Text className={`text-2xl font-bold ${accent ? "text-teal-ink" : "text-ink"}`}>{value}</Text>
       {children}
-      <Text className="text-paper/60 text-xs uppercase font-bold mt-0.5">{label}</Text>
+      <Text className="text-muted text-xs font-medium mt-0.5">{label}</Text>
     </View>
   );
 }
@@ -142,7 +143,7 @@ function Stat({ value, label, accent, children }: { value: string; label: string
 function SectionTitle({ title, count }: { title: string; count?: number }) {
   return (
     <View className="flex-row items-baseline justify-between mb-3">
-      <Text className="text-forest-950 font-bold uppercase text-xs tracking-widest">{title}</Text>
+      <Text className="text-ink font-bold text-base">{title}</Text>
       {count !== undefined ? <Text className="text-muted text-xs">{count}</Text> : null}
     </View>
   );
@@ -169,12 +170,12 @@ function ReviewCard({ review, canReport }: { review: Review; canReport: boolean 
   };
 
   return (
-    <View className="bg-paper p-4 rounded-lg border border-muted/10">
+    <View className="bg-paper p-4 rounded-lg border border-line">
       <View className="flex-row items-center justify-between mb-2">
         <Stars value={review.rating} />
         <Text className="text-muted text-xs">{formatDate(review.createdAt)}</Text>
       </View>
-      <Text className="text-forest-950 leading-5 mb-2">{review.comment}</Text>
+      <Text className="text-ink leading-5 mb-2">{review.comment}</Text>
       <Text className="text-muted text-xs">
         {review.reviewerFirstName} · {review.jobTitle}
       </Text>
@@ -184,7 +185,7 @@ function ReviewCard({ review, canReport }: { review: Review; canReport: boolean 
           <Text className="text-muted text-xs font-bold">Report this review</Text>
         </Pressable>
       ) : null}
-      {reported ? <Text className="text-forest-700 text-xs font-bold mt-3">Reported. The admin team will take a look.</Text> : null}
+      {reported ? <Text className="text-teal-ink text-xs font-bold mt-3">Reported. The admin team will take a look.</Text> : null}
       {reporting ? (
         <View className="mt-4 gap-y-3">
           <Field label="What's wrong with this review?" value={reason} onChangeText={setReason} multiline />

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Platform, Pressable, View } from "react-native";
+import { Text } from "./Text";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Circle, Path } from "react-native-svg";
 import { ApiError, api, uploadFile, type Me, type PickedFile } from "../lib/api";
@@ -86,28 +87,28 @@ export function ProfilePhoto({ name, size = 64 }: { name: string; size?: number 
         accessibilityLabel={url ? "Change profile picture" : "Add profile picture"}
         style={{ width: size, height: size }}
       >
-        <View className="bg-lime-soft items-center justify-center overflow-hidden" style={{ width: size, height: size, borderRadius: size / 2 }}>
+        <View className="bg-teal-soft items-center justify-center overflow-hidden" style={{ width: size, height: size, borderRadius: size / 2 }}>
           {url ? (
             <Image source={{ uri: url }} style={{ width: size, height: size }} accessibilityIgnoresInvertColors />
           ) : (
-            <Text className="text-forest-950 font-bold" style={{ fontSize: size * 0.34 }}>
+            <Text className="text-ink font-bold" style={{ fontSize: size * 0.34 }}>
               {initialsOf(name)}
             </Text>
           )}
           {busy ? (
-            <View className="absolute inset-0 bg-forest-950/50 items-center justify-center">
-              <ActivityIndicator color="#b8f13e" />
+            <View className="absolute inset-0 bg-ink/50 items-center justify-center">
+              <ActivityIndicator color="#ffffff" />
             </View>
           ) : null}
         </View>
         {/* Camera badge shows the photo can be changed. */}
         <View
-          className="absolute bg-forest-900 items-center justify-center border-2 border-paper"
+          className="absolute bg-teal items-center justify-center border-2 border-paper"
           style={{ width: badge, height: badge, borderRadius: badge / 2, right: -2, bottom: -2 }}
         >
           <Svg width={badge * 0.55} height={badge * 0.55} viewBox="0 0 24 24">
-            <Path d="M4 8h3l1.5-2h7L17 8h3v11H4Z" stroke="#b8f13e" strokeWidth={2} strokeLinejoin="round" fill="none" />
-            <Circle cx={12} cy={13} r={3.2} stroke="#b8f13e" strokeWidth={2} fill="none" />
+            <Path d="M4 8h3l1.5-2h7L17 8h3v11H4Z" stroke="#ffffff" strokeWidth={2} strokeLinejoin="round" fill="none" />
+            <Circle cx={12} cy={13} r={3.2} stroke="#ffffff" strokeWidth={2} fill="none" />
           </Svg>
         </View>
       </Pressable>

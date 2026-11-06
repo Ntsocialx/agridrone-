@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, ScrollView, Pressable, RefreshControl } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { JobCard } from "../components/JobCard";
@@ -27,7 +28,7 @@ function statusLine(job: Job, role: Role): string {
     if (job.status === "on_hold") return "On compliance hold";
     if (job.status === "assigned") return `${job.assignedOperatorName} is on it`;
     if (job.status === "pending_confirmation") return `${job.assignedOperatorName} finished`;
-    if (job.status === "removed") return "Removed by AgriDrone";
+    if (job.status === "removed") return "Removed by AgricDrone Hub";
   } else if (job.status === "pending_confirmation") return "Waiting for the owner";
   return "";
 }
@@ -44,8 +45,8 @@ export default function MyJobsScreen() {
   const activeCount = all.filter((j) => !DONE.includes(j.status)).length;
 
   return (
-    <View className="flex-1 bg-cream">
-      <StatusBar style="light" />
+    <View className="flex-1 bg-page">
+      <StatusBar style="dark" />
       <HeroHeader eyebrow={isOwner ? "Your farm jobs" : "Your flights"} title="My jobs">
         <View className="flex-row gap-3 mt-5">
           {[
@@ -53,24 +54,24 @@ export default function MyJobsScreen() {
             [String(actionCount), "Need you"],
             [String(all.length - activeCount), "Done"],
           ].map(([value, label]) => (
-            <View key={label} className="flex-1 bg-forest-800 border border-forest-700 rounded-md p-3">
-              <Text className={`text-2xl font-bold ${label === "Need you" && actionCount ? "text-lime" : "text-white"}`}>{jobs.data ? value : "–"}</Text>
-              <Text className="text-paper/60 text-xs uppercase font-bold">{label}</Text>
+            <View key={label} className="flex-1 bg-page border border-line rounded-md p-3">
+              <Text className={`text-2xl font-bold ${label === "Need you" && actionCount ? "text-teal-ink" : "text-ink"}`}>{jobs.data ? value : "–"}</Text>
+              <Text className="text-muted text-xs font-medium">{label}</Text>
             </View>
           ))}
         </View>
       </HeroHeader>
 
-      <View className="flex-row mx-6 mt-6 mb-4 bg-paper rounded-full p-1 border border-muted/10">
+      <View className="flex-row mx-6 mt-6 mb-4 bg-paper rounded-full p-1 border border-line">
         {(["active", "done"] as const).map((t) => (
           <Pressable
             key={t}
             onPress={() => setTab(t)}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === t }}
-            className={`flex-1 py-2 rounded-full items-center ${tab === t ? "bg-forest-900" : ""}`}
+            className={`flex-1 py-2 rounded-full items-center ${tab === t ? "bg-teal" : ""}`}
           >
-            <Text className={`font-bold text-sm ${tab === t ? "text-lime" : "text-muted"}`}>{t === "active" ? "Active" : "Completed"}</Text>
+            <Text className={`font-semibold text-sm ${tab === t ? "text-white" : "text-muted"}`}>{t === "active" ? "Active" : "Completed"}</Text>
           </Pressable>
         ))}
       </View>
@@ -92,12 +93,12 @@ export default function MyJobsScreen() {
             <EmptyState title="Nothing completed yet" body={isOwner ? "Finished jobs and your reviews will appear here." : "Completed jobs build your public profile."} />
           )
         ) : (
-          <View className="gap-y-4">
+          <View className="gap-y-5">
             {shown.map((job) => {
               const line = statusLine(job, user.role);
               return (
                 <View key={job.id}>
-                  {line ? <Text className="text-muted text-xs font-bold uppercase mb-2 ml-1">{line}</Text> : null}
+                  {line ? <Text className="text-muted text-xs font-medium mb-2 ml-1">{line}</Text> : null}
                   <JobCard
                     job={job}
                     hint={nextStep(job, user.role)}

@@ -1,4 +1,5 @@
-import { Text, View, ScrollView } from "react-native";
+import { View, ScrollView } from "react-native";
+import { Text } from "../components/Text";
 import { StatusBar } from "expo-status-bar";
 import { AccountCard } from "../components/AccountCard";
 import { ProfilePhoto } from "../components/ProfilePhoto";
@@ -11,7 +12,7 @@ export default function OwnerProfileScreen() {
 
   return (
     <View className="flex-1 bg-paper">
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <HeroHeader eyebrow="Farm owner" title="Your profile" />
       <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingTop: 20, paddingBottom: 32 }}>
         <View className="flex-row items-center mb-6">
@@ -19,7 +20,7 @@ export default function OwnerProfileScreen() {
             <ProfilePhoto name={user.fullName} size={64} />
           </View>
           <View className="flex-1">
-            <Text className="text-forest-950 font-bold text-xl">{user.fullName}</Text>
+            <Text className="text-ink font-bold text-xl">{user.fullName}</Text>
             <Text className="text-muted text-sm">Tap the photo to change it</Text>
           </View>
         </View>

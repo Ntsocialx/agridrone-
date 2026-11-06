@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Animated, Easing, Text, View, Pressable, ImageBackground, Image } from "react-native";
+import { Animated, Easing, View, Pressable, ImageBackground, Image } from "react-native";
+import { Text } from "../components/Text";
 import { Redirect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,11 +9,11 @@ import { useReduceMotion } from "../components/DroneLoader";
 import { LegalFooter } from "../components/ui";
 import { homeFor, useSession } from "../lib/session";
 
-// Young maize rows at golden hour, from Unsplash (Unsplash License).
-const BACKGROUND = "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=1200&h=2000&q=80";
+// A pilot holding a drone over a wheat field, from Unsplash (Unsplash License).
+const BACKGROUND = "https://images.unsplash.com/photo-1506947411487-a56738267384?auto=format&fit=crop&w=1200&h=2000&q=80";
 // AgriSETA logo, used with permission.
 const LOGO = require("../../assets/logo-agriseta.png");
-const SUN = "#f5a623";
+const TEAL = "#1dafa1";
 const BADGE = 168;
 const RING = 240;
 
@@ -53,16 +54,16 @@ function Welcome() {
   });
 
   return (
-    <View className="flex-1 bg-forest-950">
+    <View className="flex-1 bg-ink">
       <StatusBar style="light" />
       <ImageBackground source={{ uri: BACKGROUND }} resizeMode="cover" className="absolute inset-0" />
-      {/* Light at the top so the field shows, deep green at the bottom so the buttons read. */}
+      {/* Light at the top so the photo shows, near-black at the bottom so the buttons read. */}
       <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
         <Defs>
           <LinearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#06261c" stopOpacity={0.4} />
-            <Stop offset="0.5" stopColor="#06261c" stopOpacity={0.55} />
-            <Stop offset="1" stopColor="#06261c" stopOpacity={0.97} />
+            <Stop offset="0" stopColor="#101416" stopOpacity={0.4} />
+            <Stop offset="0.5" stopColor="#101416" stopOpacity={0.55} />
+            <Stop offset="1" stopColor="#101416" stopOpacity={0.97} />
           </LinearGradient>
         </Defs>
         <Rect width="100%" height="100%" fill="url(#shade)" />
@@ -78,7 +79,7 @@ function Welcome() {
               transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
             }}
           >
-            {/* Two sun rings echoing the sun in the logo, drawn on one shared centre; the outer one breathes slowly. */}
+            {/* Two teal rings on one shared centre; the outer one breathes slowly. */}
             <Animated.View
               style={{
                 position: "absolute",
@@ -89,11 +90,11 @@ function Welcome() {
               }}
             >
               <Svg width={RING} height={RING}>
-                <Circle cx={RING / 2} cy={RING / 2} r={RING / 2} fill={SUN} opacity={0.22} />
+                <Circle cx={RING / 2} cy={RING / 2} r={RING / 2} fill={TEAL} opacity={0.25} />
               </Svg>
             </Animated.View>
             <Svg width={RING} height={RING} style={{ position: "absolute", top: 0, left: 0 }}>
-              <Circle cx={RING / 2} cy={RING / 2} r={(RING + BADGE) / 4} fill={SUN} opacity={0.3} />
+              <Circle cx={RING / 2} cy={RING / 2} r={(RING + BADGE) / 4} fill={TEAL} opacity={0.35} />
             </Svg>
             <View
               className="bg-paper items-center justify-center"
@@ -116,38 +117,38 @@ function Welcome() {
           </Animated.View>
 
           <Animated.View style={[{ alignItems: "center", marginTop: 20 }, rise(title, 16)]}>
-            <Text className="text-white font-bold text-center" style={{ fontSize: 46, letterSpacing: -1.2 }} accessibilityRole="header">
-              AgriDrone
+            <Text className="text-white font-bold text-center" style={{ fontSize: 40, letterSpacing: -1 }} accessibilityRole="header">
+              AgricDrone Hub
             </Text>
             <Text className="text-paper/85 text-base text-center mt-3 leading-6" style={{ maxWidth: 300 }}>
               Book certified drone pilots to map, monitor and survey your farm.
             </Text>
-            <View className="flex-row items-center mt-5 px-4 py-2 rounded-full" style={{ backgroundColor: "rgba(184,241,62,0.12)", borderWidth: 1, borderColor: "rgba(184,241,62,0.35)" }}>
-              <Text className="text-lime text-sm font-bold mr-2">✓</Text>
+            <View className="flex-row items-center mt-5 px-4 py-2 rounded-full" style={{ backgroundColor: "rgba(29,175,161,0.18)", borderWidth: 1, borderColor: "rgba(127,224,214,0.45)" }}>
+              <Text className="text-teal-light text-sm font-bold mr-2">✓</Text>
               <Text className="text-paper/90 text-sm">Every pilot&apos;s licence is checked by our team</Text>
             </View>
           </Animated.View>
         </View>
 
         <Animated.View style={[{ alignItems: "center" }, rise(actions, 24)]}>
-          {/* Compact pill with a soft lime glow instead of the full-width form button. */}
+          {/* Compact teal pill, like the site's active tab, instead of the full-width form button. */}
           <Pressable
             onPress={() => router.push("/register")}
             accessibilityRole="button"
-            className="bg-lime rounded-full flex-row items-center active:opacity-80"
-            style={{ paddingLeft: 28, paddingRight: 8, height: 52, shadowColor: "#b8f13e", shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+            className="bg-teal rounded-full flex-row items-center active:opacity-80"
+            style={{ paddingLeft: 28, paddingRight: 8, height: 52, shadowColor: "#1dafa1", shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
           >
-            <Text className="text-forest-950 font-bold text-base mr-4">Get started</Text>
-            <View className="bg-forest-950 rounded-full items-center justify-center" style={{ width: 36, height: 36 }}>
+            <Text className="text-white font-semibold text-base mr-4">Get started</Text>
+            <View className="bg-paper rounded-full items-center justify-center" style={{ width: 36, height: 36 }}>
               <Svg width={16} height={16} viewBox="0 0 16 16">
-                <Path d="M6 3.5 L10.5 8 L6 12.5" stroke="#b8f13e" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <Path d="M6 3.5 L10.5 8 L6 12.5" stroke="#0e7c72" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </Svg>
             </View>
           </Pressable>
 
           <Pressable className="mt-4 py-2 items-center" onPress={() => router.push("/login")} accessibilityRole="button">
             <Text className="text-white/80 text-sm">
-              Already have an account? <Text className="text-lime font-bold">Sign in</Text>
+              Already have an account? <Text className="text-teal-light font-bold">Sign in</Text>
             </Text>
           </Pressable>
 

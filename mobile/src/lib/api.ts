@@ -184,7 +184,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       body: options.body ? JSON.stringify(options.body) : undefined,
     }));
   } catch {
-    throw new ApiError("Can't reach AgriDrone. Check your connection and try again.", 0);
+    throw new ApiError("Can't reach AgricDrone Hub. Check your connection and try again.", 0);
   }
 
   if (response.status === 204) return undefined as T;
@@ -237,11 +237,13 @@ export const formatZar = (amount: number) => `R ${String(amount).replace(/\B(?=(
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
 
+// Drone photos from Unsplash (Unsplash License), one per service.
+const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 const IMAGES: Record<Service, string> = {
-  Mapping: "https://images.unsplash.com/photo-1500382017468-9049fed74703?auto=format&fit=crop&w=800&q=80",
-  Monitoring: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=800&q=80",
-  Surveying: "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=800&q=80",
-  Spraying: "https://images.unsplash.com/photo-1464226188480-7377c6fd07ae?auto=format&fit=crop&w=800&q=80",
+  Mapping: unsplash("photo-1473968512647-3e447244af8f"),
+  Monitoring: unsplash("photo-1527977966376-1c8408f9f108"),
+  Surveying: unsplash("photo-1508444845599-5c89863b1c44"),
+  Spraying: unsplash("photo-1657093114835-031e7cf9520c"),
 };
 /** Jobs have no photos yet, so each service gets a representative aerial image. */
 export const serviceImage = (service: Service) => IMAGES[service];

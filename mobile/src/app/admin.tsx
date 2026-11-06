@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { Alert, Linking, Text, View, ScrollView, Pressable, RefreshControl } from "react-native";
+import { Alert, Linking, View, ScrollView, Pressable, RefreshControl } from "react-native";
+import { Text } from "../components/Text";
 import { StatusBar } from "expo-status-bar";
 import { Button, Chip, EmptyState, ErrorState, Field, HeroHeader, Loading, Stars } from "../components/ui";
 import { ApiError, api, formatDate, type Service, type VerificationStatus } from "../lib/api";
@@ -73,27 +74,27 @@ export default function AdminScreen() {
   const openReports = (reports.data?.length ?? 0) + (jobReports.data?.length ?? 0);
 
   return (
-    <View className="flex-1 bg-cream">
-      <StatusBar style="light" />
+    <View className="flex-1 bg-page">
+      <StatusBar style="dark" />
       <HeroHeader eyebrow="Admin console" title={user?.fullName.split(" ")[0] ?? "Admin"}>
         <View className="flex-row items-center justify-between mt-4">
-          <Text className="text-paper/70 text-sm flex-1 mr-3">Internal checks only, not aviation authority approval.</Text>
+          <Text className="text-muted text-sm flex-1 mr-3">Internal checks only, not aviation authority approval.</Text>
           <Pressable onPress={signOut} accessibilityRole="button" className="py-1">
-            <Text className="text-lime font-bold text-sm">Sign out</Text>
+            <Text className="text-danger font-semibold text-sm">Sign out</Text>
           </Pressable>
         </View>
       </HeroHeader>
 
-      <View className="flex-row mx-6 mt-6 mb-4 bg-paper rounded-full p-1 border border-muted/10">
+      <View className="flex-row mx-6 mt-6 mb-4 bg-paper rounded-full p-1 border border-line">
         {(["pilots", "reports", "notify"] as const).map((t) => (
           <Pressable
             key={t}
             onPress={() => setTab(t)}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === t }}
-            className={`flex-1 py-2 rounded-full items-center ${tab === t ? "bg-forest-900" : ""}`}
+            className={`flex-1 py-2 rounded-full items-center ${tab === t ? "bg-teal" : ""}`}
           >
-            <Text className={`font-bold text-sm ${tab === t ? "text-lime" : "text-muted"}`}>
+            <Text className={`font-semibold text-sm ${tab === t ? "text-white" : "text-muted"}`}>
               {t === "pilots" ? "Pilots" : t === "notify" ? "Notify" : `Reports${openReports ? ` (${openReports})` : ""}`}
             </Text>
           </Pressable>
@@ -119,7 +120,7 @@ export default function AdminScreen() {
           ) : applications.data.length === 0 ? (
             <EmptyState title="Nothing here" body={filter === "in_review" ? "No pilots are waiting for review." : "No pilots in this list yet."} />
           ) : (
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               {applications.data.map((app) => (
                 <ApplicationCard key={app.id} app={app} onDecided={applications.reload} />
               ))}
@@ -133,7 +134,7 @@ export default function AdminScreen() {
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={false} onRefresh={() => void Promise.all([reports.reload(), jobReports.reload()])} />}
         >
-          <Text className="text-forest-950 font-bold text-lg mb-3">Job posts</Text>
+          <Text className="text-ink font-bold text-lg mb-3">Job posts</Text>
           {jobReports.error ? (
             <ErrorState message={jobReports.error} onRetry={jobReports.reload} />
           ) : !jobReports.data ? (
@@ -141,14 +142,14 @@ export default function AdminScreen() {
           ) : jobReports.data.length === 0 ? (
             <EmptyState title="No reported job posts" body="When someone reports a job post, it shows up here." />
           ) : (
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               {jobReports.data.map((report) => (
                 <JobReportCard key={report.id} report={report} onDecided={() => Promise.all([jobReports.reload(), suspended.reload()])} />
               ))}
             </View>
           )}
 
-          <Text className="text-forest-950 font-bold text-lg mt-8 mb-3">Reviews</Text>
+          <Text className="text-ink font-bold text-lg mt-8 mb-3">Reviews</Text>
           {reports.error ? (
             <ErrorState message={reports.error} onRetry={reports.reload} />
           ) : !reports.data ? (
@@ -156,14 +157,14 @@ export default function AdminScreen() {
           ) : reports.data.length === 0 ? (
             <EmptyState title="No reported reviews" body="When a pilot reports a review, it shows up here." />
           ) : (
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               {reports.data.map((report) => (
                 <ReportCard key={report.id} report={report} onDecided={reports.reload} />
               ))}
             </View>
           )}
 
-          <Text className="text-forest-950 font-bold text-lg mt-8 mb-3">Suspended accounts</Text>
+          <Text className="text-ink font-bold text-lg mt-8 mb-3">Suspended accounts</Text>
           {suspended.error ? (
             <ErrorState message={suspended.error} onRetry={suspended.reload} />
           ) : !suspended.data ? (
@@ -171,7 +172,7 @@ export default function AdminScreen() {
           ) : suspended.data.length === 0 ? (
             <EmptyState title="No suspended accounts" body="Accounts you suspend from a report are listed here so you can restore them." />
           ) : (
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               {suspended.data.map((u) => (
                 <SuspendedCard key={u.id} account={u} onRestored={suspended.reload} />
               ))}
@@ -217,20 +218,20 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
   };
 
   return (
-    <View className="bg-paper p-4 rounded-lg border border-muted/10">
-      <Text className="text-forest-950 font-bold text-lg">{app.fullName}</Text>
+    <View className="bg-paper p-4 rounded-lg border border-line">
+      <Text className="text-ink font-bold text-lg">{app.fullName}</Text>
       <Text className="text-muted text-xs mb-2">
         {app.base || "Base not set"}
         {app.submittedAt ? ` • Submitted ${formatDate(app.submittedAt)}` : ""}
       </Text>
       <Text className="text-muted text-sm mb-3">Services: {app.services.join(", ") || "—"}</Text>
 
-      <Pressable onPress={openLicence} disabled={busy !== null} accessibilityRole="button" className="flex-row items-center p-3 bg-cream rounded-md mb-4 active:opacity-70">
-        <View className="w-9 h-9 bg-lime-soft rounded-md items-center justify-center mr-3">
-          <Text className="text-forest-950 font-bold text-xs">PDF</Text>
+      <Pressable onPress={openLicence} disabled={busy !== null} accessibilityRole="button" className="flex-row items-center p-3 bg-page rounded-md mb-4 active:opacity-70">
+        <View className="w-9 h-9 bg-teal-soft rounded-md items-center justify-center mr-3">
+          <Text className="text-ink font-bold text-xs">PDF</Text>
         </View>
         <View className="flex-1">
-          <Text className="text-forest-950 font-bold text-sm">Remote pilot licence</Text>
+          <Text className="text-ink font-bold text-sm">Remote pilot licence</Text>
           <Text className="text-muted text-xs">{busy === "licence" ? "Opening secure link…" : "Tap to view · link expires in 5 min"}</Text>
         </View>
       </Pressable>
@@ -273,14 +274,14 @@ function ReportCard({ report, onDecided }: { report: Report; onDecided: () => vo
   };
 
   return (
-    <View className="bg-paper p-4 rounded-lg border border-muted/10">
-      <Text className="text-muted text-xs uppercase font-bold mb-2">Review of {report.operatorName}</Text>
+    <View className="bg-paper p-4 rounded-lg border border-line">
+      <Text className="text-muted text-xs font-medium mb-2">Review of {report.operatorName}</Text>
       <Stars value={report.rating} />
-      <Text className="text-forest-950 leading-5 my-2">{report.comment}</Text>
+      <Text className="text-ink leading-5 my-2">{report.comment}</Text>
       <Text className="text-muted text-xs mb-3">{report.reviewerFirstName} · {report.jobTitle}</Text>
       <View className="bg-danger/10 p-3 rounded-md mb-4">
-        <Text className="text-danger text-xs font-bold uppercase mb-1">Pilot&apos;s report</Text>
-        <Text className="text-forest-950 text-sm">{report.reason}</Text>
+        <Text className="text-danger text-xs font-medium mb-1">Pilot&apos;s report</Text>
+        <Text className="text-ink text-sm">{report.reason}</Text>
       </View>
       <View className="flex-row gap-3">
         <View className="flex-1"><Button label="Keep review" variant="outline" busy={busy === "keep"} disabled={busy !== null} onPress={() => moderate("keep")} /></View>
@@ -315,17 +316,17 @@ function JobReportCard({ report, onDecided }: { report: JobReport; onDecided: ()
   };
 
   return (
-    <View className="bg-paper p-4 rounded-lg border border-muted/10">
+    <View className="bg-paper p-4 rounded-lg border border-line">
       <Text className="text-danger text-xs font-bold mb-2">{CATEGORY_LABELS[report.category]}</Text>
       <Pressable onPress={() => router.push({ pathname: "/job-details", params: { id: report.jobId } })} accessibilityRole="link">
-        <Text className="text-forest-950 font-bold text-lg underline">{report.jobTitle}</Text>
+        <Text className="text-ink font-bold text-lg underline">{report.jobTitle}</Text>
       </Pressable>
       <Text className="text-muted text-xs mb-3">
         Posted by {report.ownerName}
         {report.ownerSuspended ? " (suspended)" : ""}, reported by {report.reporterName} on {formatDate(report.createdAt)}
       </Text>
       <View className="bg-danger/10 p-3 rounded-md mb-4">
-        <Text className="text-forest-950 text-sm">{report.note}</Text>
+        <Text className="text-ink text-sm">{report.note}</Text>
       </View>
 
       {pending ? (
@@ -378,12 +379,12 @@ function SuspendedCard({ account, onRestored }: { account: SuspendedUser; onRest
     }
   };
   return (
-    <View className="bg-paper p-4 rounded-lg border border-muted/10">
-      <Text className="text-forest-950 font-bold text-lg">{account.fullName}</Text>
+    <View className="bg-paper p-4 rounded-lg border border-line">
+      <Text className="text-ink font-bold text-lg">{account.fullName}</Text>
       <Text className="text-muted text-xs mb-2">
         {account.email}, suspended {formatDate(account.suspendedAt)}
       </Text>
-      {account.reason ? <Text className="text-forest-950 text-sm mb-4">Reason: {account.reason}</Text> : null}
+      {account.reason ? <Text className="text-ink text-sm mb-4">Reason: {account.reason}</Text> : null}
       <Button label="Unsuspend" variant="outline" busy={busy} onPress={restore} />
     </View>
   );
@@ -428,14 +429,14 @@ function NotifyTab() {
 
   return (
     <ScrollView className="flex-1" contentContainerClassName="px-6 pb-10" keyboardShouldPersistTaps="handled">
-      <View className="bg-paper p-4 rounded-lg border border-muted/10">
-        <Text className="text-forest-950 font-bold text-lg mb-1">Send to everyone</Text>
+      <View className="bg-paper p-4 rounded-lg border border-line">
+        <Text className="text-ink font-bold text-lg mb-1">Send to everyone</Text>
         <Text className="text-muted text-xs mb-4">Every pilot and farm owner sees this under the bell.</Text>
         <View className="flex-row gap-2 mb-4">
           <Chip label="Announcement" active={kind === "announcement"} onPress={() => setKind("announcement")} />
           <Chip label="App update" active={kind === "update"} onPress={() => setKind("update")} />
         </View>
-        <View className="gap-y-4">
+        <View className="gap-y-5">
           <Field label="Title" placeholder="e.g. Planned maintenance on Sunday" value={title} onChangeText={setTitle} maxLength={120} error={submitted ? errors.title : undefined} />
           <Field label="Message" placeholder="What do people need to know?" value={body} onChangeText={setBody} multiline maxLength={1000} error={submitted ? errors.body : undefined} />
         </View>
@@ -443,7 +444,7 @@ function NotifyTab() {
         <View className="mt-5">
           {confirming ? (
             <View>
-              <Text className="text-forest-950 text-sm mb-3">
+              <Text className="text-ink text-sm mb-3">
                 Send this {kind === "update" ? "app update" : "announcement"} to every user? It can&apos;t be unsent.
               </Text>
               <View className="flex-row gap-3">
@@ -457,7 +458,7 @@ function NotifyTab() {
         </View>
       </View>
 
-      <Text className="text-forest-950 font-bold text-lg mt-8 mb-3">Sent</Text>
+      <Text className="text-ink font-bold text-lg mt-8 mb-3">Sent</Text>
       {history.error ? (
         <ErrorState message={history.error} onRetry={history.reload} />
       ) : !history.data ? (
@@ -467,11 +468,11 @@ function NotifyTab() {
       ) : (
         <View className="gap-y-3">
           {history.data.map((b) => (
-            <View key={b.id} className="bg-paper p-4 rounded-lg border border-muted/10">
+            <View key={b.id} className="bg-paper p-4 rounded-lg border border-line">
               <Text className="text-muted text-xs mb-1">
                 {b.kind === "update" ? "App update" : "Announcement"}, {formatDate(b.createdAt)}
               </Text>
-              <Text className="text-forest-950 font-bold">{b.title}</Text>
+              <Text className="text-ink font-bold">{b.title}</Text>
               <Text className="text-muted text-sm mt-1">{b.body}</Text>
             </View>
           ))}

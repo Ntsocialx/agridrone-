@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, PasswordField } from "../components/ui";
 import { ApiError, api } from "../lib/api";
@@ -40,8 +41,8 @@ export default function ChangePasswordScreen() {
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         {done ? (
           <View>
-            <View className="bg-lime-soft p-4 rounded-md">
-              <Text className="text-forest-950 text-sm">Password changed. Use your new password next time you sign in.</Text>
+            <View className="bg-teal-soft p-4 rounded-md">
+              <Text className="text-ink text-sm">Password changed. Use your new password next time you sign in.</Text>
             </View>
             <View className="mt-8">
               <Button label="Back to profile" onPress={() => router.back()} />
@@ -49,7 +50,7 @@ export default function ChangePasswordScreen() {
           </View>
         ) : (
           <>
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               <PasswordField label="Current password" value={current} onChangeText={setCurrent} autoComplete="current-password" error={submitted ? errors.current : undefined} />
               <PasswordField label="New password" placeholder="At least 8 characters" value={password} onChangeText={setPassword} autoComplete="new-password" error={submitted ? errors.password : undefined} />
               <PasswordField
@@ -60,7 +61,7 @@ export default function ChangePasswordScreen() {
                 autoComplete="new-password"
                 error={submitted || confirm.length >= password.length ? errors.confirm : undefined}
               />
-              {!errors.confirm && confirm ? <Text className="text-forest-700 text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
+              {!errors.confirm && confirm ? <Text className="text-teal-ink text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
             </View>
 
             {error ? (

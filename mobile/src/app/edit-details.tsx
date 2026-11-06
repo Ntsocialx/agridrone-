@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, PasswordField } from "../components/ui";
 import { ApiError, api, type Me } from "../lib/api";
@@ -63,7 +64,7 @@ function DetailsForm({ me }: { me: Me }) {
 
   return (
     <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
-      <View className="gap-y-4">
+      <View className="gap-y-5">
         <Field label="Full name" value={form.name} onChangeText={set("name")} error={show("name")} autoComplete="name" />
         <Field label="Mobile number" placeholder="+27 ..." value={form.phone} onChangeText={set("phone")} error={show("phone")} keyboardType="phone-pad" autoComplete="tel" />
         <Field label="Email address" value={form.email} onChangeText={set("email")} error={show("email")} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />

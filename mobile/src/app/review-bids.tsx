@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Text, View, ScrollView, Pressable } from "react-native";
+import { Alert, View, ScrollView, Pressable } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, EmptyState, ErrorState, Loading } from "../components/ui";
 import { ApiError, api, formatZar, type Bid, type Job } from "../lib/api";
@@ -35,7 +36,7 @@ export default function ReviewBidsScreen() {
 
   const j = job.data;
   return (
-    <View className="flex-1 bg-cream">
+    <View className="flex-1 bg-page">
       <BackHeader title="Review bids" subtitle={j ? `${j.bids.length} bid${j.bids.length === 1 ? "" : "s"} received` : undefined} fallback="/my-jobs" />
       <ScrollView className="flex-1" contentContainerClassName="px-6 pt-4 pb-10">
         {job.error ? (
@@ -44,46 +45,46 @@ export default function ReviewBidsScreen() {
           <Loading />
         ) : (
           <>
-            <View className="bg-forest-900 p-4 rounded-lg mb-6">
-              <Text className="text-lime text-[10px] font-bold uppercase mb-1">{j.service} • {j.areaHa} ha</Text>
-              <Text className="text-white font-bold text-lg">{j.title}</Text>
-              <Text className="text-paper/70 text-sm">{j.location} • Budget {formatZar(j.budgetZar)}</Text>
+            <View className="bg-paper p-4 rounded-lg mb-6 border border-line">
+              <Text className="text-teal-ink text-xs font-semibold mb-1">{j.service} • {j.areaHa} ha</Text>
+              <Text className="text-ink font-bold text-lg">{j.title}</Text>
+              <Text className="text-muted text-sm">{j.location} • Budget {formatZar(j.budgetZar)}</Text>
             </View>
 
-            <Text className="text-forest-950 font-bold text-xl mb-1">Compare your options</Text>
+            <Text className="text-ink font-bold text-xl mb-1">Compare your options</Text>
             <Text className="text-muted text-sm mb-4">Lowest price first. Tap a pilot to see their completed work and reviews.</Text>
 
             {j.bids.length === 0 ? (
               <EmptyState title="No bids yet" body="Your job is live. Verified operators will see it in their marketplace." />
             ) : null}
 
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               {j.bids.map((bid) => {
                 const initials = bid.operatorName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
                 return (
-                  <View key={bid.id} className={`bg-paper p-4 rounded-lg border ${bid.status === "accepted" ? "border-lime border-2" : "border-muted/10"}`}>
+                  <View key={bid.id} className={`bg-paper p-4 rounded-lg border ${bid.status === "accepted" ? "border-teal border-2" : "border-line"}`}>
                     <Pressable
                       onPress={() => router.push({ pathname: "/pilot", params: { id: bid.operatorId } })}
                       accessibilityRole="button"
                       accessibilityHint="Opens this pilot's profile"
                       className="flex-row items-center mb-3"
                     >
-                      <View className="w-11 h-11 rounded-full bg-lime-soft items-center justify-center mr-3">
-                        <Text className="text-forest-950 font-bold">{initials}</Text>
+                      <View className="w-11 h-11 rounded-full bg-teal-soft items-center justify-center mr-3">
+                        <Text className="text-ink font-bold">{initials}</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-forest-950 font-bold">{bid.operatorName}</Text>
-                        <Text className="text-forest-700 text-xs font-bold">View profile & reviews →</Text>
+                        <Text className="text-ink font-bold">{bid.operatorName}</Text>
+                        <Text className="text-teal-ink text-xs font-bold">View profile & reviews →</Text>
                       </View>
                       <View className="items-end">
-                        <Text className="text-forest-950 font-bold text-lg">{formatZar(bid.amountZar)}</Text>
+                        <Text className="text-ink font-bold text-lg">{formatZar(bid.amountZar)}</Text>
                         <Text className="text-muted text-xs">{bid.days} day{bid.days === 1 ? "" : "s"}</Text>
                       </View>
                     </Pressable>
                     <Text className="text-muted text-sm leading-5 mb-4">{bid.message}</Text>
                     {bid.status === "accepted" ? (
-                      <View className="bg-lime-soft p-3 rounded-md items-center">
-                        <Text className="text-forest-950 font-bold">Selected operator</Text>
+                      <View className="bg-teal-soft p-3 rounded-md items-center">
+                        <Text className="text-ink font-bold">Selected operator</Text>
                       </View>
                     ) : j.status === "open" ? (
                       <Button label="Select operator" variant="dark" busy={busyId === bid.id} disabled={busyId !== null} onPress={() => confirmSelect(bid)} />

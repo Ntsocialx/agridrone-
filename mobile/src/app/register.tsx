@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, Checkbox, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
@@ -52,9 +53,9 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <BackHeader title="Create account" subtitle={role === "operator" ? "Step 1 of 2" : "Join the AgriDrone network"} />
+      <BackHeader title="Create account" subtitle={role === "operator" ? "Step 1 of 2" : "Join the AgricDrone Hub network"} />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
-        <Text className="text-forest-950 font-bold mb-3 uppercase text-xs tracking-widest">Select your role</Text>
+        <Text className="text-ink font-bold mb-3 text-base">Select your role</Text>
         <View className="flex-row gap-3 mb-8">
           {ROLES.map((r) => {
             const active = role === r.value;
@@ -64,16 +65,16 @@ export default function RegisterScreen() {
                 onPress={() => setRole(r.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                className={`flex-1 p-4 border-2 rounded-md ${active ? "border-lime bg-lime-soft" : "border-muted/30 bg-paper"}`}
+                className={`flex-1 p-4 border-2 rounded-md ${active ? "border-teal bg-teal-soft" : "border-line bg-paper"}`}
               >
-                <Text className={`font-bold ${active ? "text-forest-950" : "text-muted"}`}>{r.label}</Text>
+                <Text className={`font-bold ${active ? "text-ink" : "text-muted"}`}>{r.label}</Text>
                 <Text className="text-muted text-xs mt-1">{r.hint}</Text>
               </Pressable>
             );
           })}
         </View>
 
-        <View className="gap-y-4 mb-6">
+        <View className="gap-y-5 mb-6">
           <Field label="Full name" placeholder="Enter your full name" value={form.name} onChangeText={set("name")} error={show("name")} autoComplete="name" />
           <Field label="Mobile number" placeholder="+27 ..." value={form.phone} onChangeText={set("phone")} error={show("phone")} keyboardType="phone-pad" autoComplete="tel" />
           <Field label="Email address" placeholder="email@example.com" value={form.email} onChangeText={set("email")} error={show("email")} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
@@ -87,11 +88,11 @@ export default function RegisterScreen() {
             error={submitted || form.confirm.length >= form.password.length ? errors.confirm : undefined}
             autoComplete="new-password"
           />
-          {!errors.confirm && form.confirm ? <Text className="text-forest-700 text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
+          {!errors.confirm && form.confirm ? <Text className="text-teal-ink text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
         </View>
 
         <Checkbox checked={accepted} onChange={setAccepted}>
-          I have read and accept the Terms of Service and the Privacy Notice, including how AgriDrone processes my
+          I have read and accept the Terms of Service and the Privacy Notice, including how AgricDrone Hub processes my
           personal information under POPIA.
         </Checkbox>
         {submitted && !accepted ? <Text className="text-danger text-xs mt-2 ml-9">Please accept to continue</Text> : null}

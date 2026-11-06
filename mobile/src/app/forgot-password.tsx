@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
@@ -75,11 +76,11 @@ export default function ForgotPasswordScreen() {
         ) : (
           <>
             {notice ? (
-              <View className="bg-lime-soft p-4 rounded-md mb-6">
-                <Text className="text-forest-950 text-sm">{notice} Check your spam folder if it doesn&apos;t arrive within a minute.</Text>
+              <View className="bg-teal-soft p-4 rounded-md mb-6">
+                <Text className="text-ink text-sm">{notice} Check your spam folder if it doesn&apos;t arrive within a minute.</Text>
               </View>
             ) : null}
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               <Field
                 label="6-digit code"
                 placeholder="123456"
@@ -100,10 +101,10 @@ export default function ForgotPasswordScreen() {
                 autoComplete="new-password"
                 error={submitted || confirm.length >= password.length ? errors.confirm : undefined}
               />
-              {!errors.confirm && confirm ? <Text className="text-forest-700 text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
+              {!errors.confirm && confirm ? <Text className="text-teal-ink text-xs -mt-2 ml-1">✓ Passwords match</Text> : null}
             </View>
             <Pressable onPress={sendCode} disabled={busy} accessibilityRole="button" className="self-start py-4">
-              <Text className="text-forest-700 font-bold text-sm">Didn&apos;t get it? Send a new code</Text>
+              <Text className="text-teal-ink font-bold text-sm">Didn&apos;t get it? Send a new code</Text>
             </Pressable>
           </>
         )}

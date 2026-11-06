@@ -27,7 +27,7 @@ const unauthorized = () => new HttpError(401, "UNAUTHORIZED", "Please sign in ag
 
 /** 403 at sign-in; 401 on a live session so the app signs the person out. */
 export const suspendedError = (status: 401 | 403 = 403) =>
-  new HttpError(status, "ACCOUNT_SUSPENDED", `Your account is suspended. Contact ${env.SUPPORT_EMAIL ?? "AgriDrone support"} to appeal.`);
+  new HttpError(status, "ACCOUNT_SUSPENDED", `Your account is suspended. Contact ${env.SUPPORT_EMAIL ?? "AgricDrone Hub support"} to appeal.`);
 
 /**
  * Verifies the bearer token, then loads the user from the database so the role

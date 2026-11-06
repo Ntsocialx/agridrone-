@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, View } from "react-native";
+import { Text } from "./Text";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { subscribeSlow } from "../lib/api";
 
@@ -104,47 +105,47 @@ function Drone({ scale = 1, still }: { scale?: number; still: boolean }) {
     <Animated.View style={{ width: DRONE_W * scale, height: DRONE_H * scale, transform: [{ translateY }, { rotate }] }}>
       <Svg width={DRONE_W * scale} height={DRONE_H * scale} viewBox={`0 0 ${DRONE_W} ${DRONE_H}`}>
         {/* far arms, motors and prop blur */}
-        <Line x1={62} y1={22} x2={46} y2={10} stroke="#124635" strokeWidth={3} strokeLinecap="round" />
-        <Line x1={98} y1={22} x2={114} y2={10} stroke="#124635" strokeWidth={3} strokeLinecap="round" />
+        <Line x1={62} y1={22} x2={46} y2={10} stroke="#3a4148" strokeWidth={3} strokeLinecap="round" />
+        <Line x1={98} y1={22} x2={114} y2={10} stroke="#3a4148" strokeWidth={3} strokeLinecap="round" />
         {FAR_ROTORS.map(([x, y, len]) => (
           <G key={x}>
-            <Ellipse cx={x} cy={y} rx={len / 2 + 2} ry={2} fill="#b8f13e" opacity={0.12} />
-            <Rect x={x - 1} y={y} width={2} height={4} fill="#124635" />
-            <Rect x={x - 3.5} y={y + 4} width={7} height={5} rx={1.5} fill="#124635" />
+            <Ellipse cx={x} cy={y} rx={len / 2 + 2} ry={2} fill="#7fe0d6" opacity={0.12} />
+            <Rect x={x - 1} y={y} width={2} height={4} fill="#3a4148" />
+            <Rect x={x - 3.5} y={y + 4} width={7} height={5} rx={1.5} fill="#3a4148" />
           </G>
         ))}
 
         {/* landing gear */}
-        <Path d="M64 36 L56 60 M96 36 L104 60" stroke="#1d5c45" strokeWidth={3} strokeLinecap="round" />
-        <Path d="M46 61 H68 M92 61 H114" stroke="#1d5c45" strokeWidth={3.5} strokeLinecap="round" />
+        <Path d="M64 36 L56 60 M96 36 L104 60" stroke="#0e7c72" strokeWidth={3} strokeLinecap="round" />
+        <Path d="M46 61 H68 M92 61 H114" stroke="#0e7c72" strokeWidth={3.5} strokeLinecap="round" />
 
         {/* near arms */}
-        <Path d="M56 24 L26 17" stroke="#1d5c45" strokeWidth={4.5} strokeLinecap="round" />
-        <Path d="M104 24 L134 17" stroke="#1d5c45" strokeWidth={4.5} strokeLinecap="round" />
+        <Path d="M56 24 L26 17" stroke="#0e7c72" strokeWidth={4.5} strokeLinecap="round" />
+        <Path d="M104 24 L134 17" stroke="#0e7c72" strokeWidth={4.5} strokeLinecap="round" />
 
-        {/* body: dark hull, lighter canopy, lime trim */}
-        <Rect x={50} y={17} width={60} height={20} rx={9} fill="#0a3326" />
-        <Path d="M58 18 Q80 8 102 18 Z" fill="#1d5c45" />
-        <Rect x={54} y={27} width={52} height={2} rx={1} fill="#b8f13e" />
-        <Rect x={92} y={21} width={8} height={3} rx={1.5} fill="#b8f13e" opacity={0.6} />
+        {/* body: dark hull, lighter canopy, teal trim */}
+        <Rect x={50} y={17} width={60} height={20} rx={9} fill="#22262a" />
+        <Path d="M58 18 Q80 8 102 18 Z" fill="#0e7c72" />
+        <Rect x={54} y={27} width={52} height={2} rx={1} fill="#7fe0d6" />
+        <Rect x={92} y={21} width={8} height={3} rx={1.5} fill="#7fe0d6" opacity={0.6} />
 
         {/* camera gimbal */}
-        <Rect x={76} y={37} width={8} height={4} fill="#124635" />
-        <Circle cx={80} cy={46} r={6} fill="#0a3326" stroke="#b8f13e" strokeWidth={1.5} />
-        <Circle cx={80} cy={46} r={2.5} fill="#b8f13e" opacity={0.85} />
+        <Rect x={76} y={37} width={8} height={4} fill="#3a4148" />
+        <Circle cx={80} cy={46} r={6} fill="#22262a" stroke="#7fe0d6" strokeWidth={1.5} />
+        <Circle cx={80} cy={46} r={2.5} fill="#7fe0d6" opacity={0.85} />
 
         {/* near motors and prop blur */}
         {NEAR_ROTORS.map(([x, y, len]) => (
           <G key={x}>
-            <Ellipse cx={x} cy={y} rx={len / 2 + 3} ry={2.5} fill="#b8f13e" opacity={0.22} />
-            <Rect x={x - 1.5} y={y} width={3} height={5} fill="#0a3326" />
-            <Rect x={x - 5} y={y + 5} width={10} height={7} rx={2} fill="#0a3326" stroke="#1d5c45" strokeWidth={1} />
+            <Ellipse cx={x} cy={y} rx={len / 2 + 3} ry={2.5} fill="#7fe0d6" opacity={0.22} />
+            <Rect x={x - 1.5} y={y} width={3} height={5} fill="#22262a" />
+            <Rect x={x - 5} y={y + 5} width={10} height={7} rx={2} fill="#22262a" stroke="#0e7c72" strokeWidth={1} />
           </G>
         ))}
       </Svg>
 
-      {FAR_ROTORS.map((r) => blade(r, "#8fbf2e"))}
-      {NEAR_ROTORS.map((r) => blade(r, "#b8f13e"))}
+      {FAR_ROTORS.map((r) => blade(r, "#4fc9bc"))}
+      {NEAR_ROTORS.map((r) => blade(r, "#7fe0d6"))}
       {/* navigation lights: red port, green starboard */}
       {light(15, "#ff5a4e")}
       {light(141, "#4ade80")}
@@ -221,13 +222,13 @@ function DroneScene() {
             borderTopWidth: 72,
             borderLeftColor: "transparent",
             borderRightColor: "transparent",
-            borderTopColor: "rgba(184,241,62,0.16)",
+            borderTopColor: "rgba(29,175,161,0.18)",
             opacity: beam.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
           }}
         />
 
         {/* field: crop rows scrolling underneath, with a sweeping scan line */}
-        <View style={{ width: 260, height: 70, overflow: "hidden", borderRadius: 14 }} className="bg-forest-800">
+        <View style={{ width: 260, height: 70, overflow: "hidden", borderRadius: 14 }} className="bg-field">
           <Animated.View
             style={{
               flexDirection: "row",
@@ -237,7 +238,7 @@ function DroneScene() {
           >
             {Array.from({ length: 16 }, (_, i) => (
               <View key={i} style={{ width: ROW_GAP, height: "100%", alignItems: "center" }}>
-                <View style={{ width: 8, height: "100%", backgroundColor: i % 3 === 0 ? "#b8f13e33" : "#1d5c45" }} />
+                <View style={{ width: 8, height: "100%", backgroundColor: i % 3 === 0 ? "#7fe0d633" : "#0e7c72" }} />
               </View>
             ))}
           </Animated.View>
@@ -247,31 +248,31 @@ function DroneScene() {
               top: 0,
               bottom: 0,
               width: 3,
-              backgroundColor: "#b8f13e",
+              backgroundColor: "#7fe0d6",
               transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [8, 249] }) }],
             }}
           />
         </View>
       </View>
 
-      <Animated.Text style={{ opacity: fade }} className="text-white font-bold text-lg mt-6 text-center">
+      <Animated.Text style={{ opacity: fade }} className="text-ink font-bold text-lg mt-6 text-center">
         {MESSAGES[message]}
       </Animated.Text>
 
-      <View style={{ width: 200, height: 4, borderRadius: 2, overflow: "hidden" }} className="bg-forest-800 mt-5">
+      <View style={{ width: 200, height: 4, borderRadius: 2, overflow: "hidden" }} className="bg-field mt-5">
         <Animated.View
           style={{
             width: 70,
             height: 4,
             borderRadius: 2,
-            backgroundColor: "#b8f13e",
+            backgroundColor: "#7fe0d6",
             transform: [{ translateX: bar.interpolate({ inputRange: [0, 1], outputRange: [-70, 200] }) }],
           }}
         />
       </View>
 
       {elapsed >= 15 ? (
-        <Text className="text-paper/60 text-sm mt-6 text-center leading-5">
+        <Text className="text-muted text-sm mt-6 text-center leading-5">
           Our server takes a short nap when nobody&apos;s flying. The first load can take up to a minute. Thanks for waiting!
         </Text>
       ) : null}
@@ -293,7 +294,7 @@ export function SlowOverlay() {
   return (
     <Animated.View
       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity }}
-      className="bg-forest-950/95 items-center justify-center"
+      className="bg-page/95 items-center justify-center"
     >
       <DroneScene />
     </Animated.View>

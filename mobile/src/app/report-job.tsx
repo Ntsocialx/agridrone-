@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, Field } from "../components/ui";
 import { ApiError, api } from "../lib/api";
@@ -48,8 +49,8 @@ export default function ReportJobScreen() {
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         {done ? (
           <View>
-            <View className="bg-lime-soft p-4 rounded-md">
-              <Text className="text-forest-950 text-sm leading-5">
+            <View className="bg-teal-soft p-4 rounded-md">
+              <Text className="text-ink text-sm leading-5">
                 Thanks. Our team will review this post, and you&apos;ll get a notification when it&apos;s been dealt with.
               </Text>
             </View>
@@ -59,7 +60,7 @@ export default function ReportJobScreen() {
           </View>
         ) : (
           <>
-            <Text className="text-forest-950 font-bold mb-3">What&apos;s wrong with this post?</Text>
+            <Text className="text-ink font-bold mb-3">What&apos;s wrong with this post?</Text>
             <View className="gap-y-2" accessibilityRole="radiogroup">
               {CATEGORIES.map((c) => {
                 const active = category === c.value;
@@ -69,9 +70,9 @@ export default function ReportJobScreen() {
                     onPress={() => setCategory(c.value)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
-                    className={`p-4 rounded-md border-2 ${active ? "border-forest-900 bg-lime-soft" : "border-muted/20 bg-cream"}`}
+                    className={`p-4 rounded-md border-2 ${active ? "border-teal bg-teal-soft" : "border-line bg-page"}`}
                   >
-                    <Text className="text-forest-950 font-bold text-sm">{c.label}</Text>
+                    <Text className="text-ink font-bold text-sm">{c.label}</Text>
                     <Text className="text-muted text-xs mt-1">{c.hint}</Text>
                   </Pressable>
                 );

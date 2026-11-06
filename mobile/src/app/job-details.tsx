@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Text, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, ErrorState, Field, Loading, StatusPill } from "../components/ui";
@@ -21,7 +22,7 @@ export default function JobDetailsScreen() {
 
   if (!job.data) {
     return (
-      <View className="flex-1 bg-cream px-6" style={{ paddingTop: insets.top + 60 }}>
+      <View className="flex-1 bg-page px-6" style={{ paddingTop: insets.top + 60 }}>
         {job.error ? <ErrorState message={job.error} onRetry={job.reload} /> : <Loading />}
         <View className="mt-4"><Button label="Go back" variant="outline" onPress={back} /></View>
       </View>
@@ -78,27 +79,27 @@ export default function JobDetailsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-cream">
+    <View className="flex-1 bg-page">
       <ScrollView className="flex-1">
         <View className="h-72">
-          <Image source={{ uri: serviceImage(j.service) }} className="w-full h-full bg-forest-800" resizeMode="cover" />
+          <Image source={{ uri: serviceImage(j.service) }} className="w-full h-full bg-field" resizeMode="cover" />
           <Pressable className="absolute left-6 px-4 py-2 bg-paper rounded-full" style={{ top: insets.top + 8 }} onPress={back} accessibilityRole="button" accessibilityLabel="Back">
-            <Text className="text-forest-900 font-bold">← Back</Text>
+            <Text className="text-ink font-bold">← Back</Text>
           </Pressable>
         </View>
 
         <View className="-mt-8 bg-paper rounded-t-lg p-6 pb-10">
           <View className="flex-row gap-2 mb-2">
             <StatusPill status={j.status} />
-            <Text className="bg-cream text-forest-900 text-[10px] font-bold px-2 py-0.5 rounded uppercase overflow-hidden">{j.service}</Text>
+            <Text className="bg-page text-ink text-xs font-bold px-2 py-0.5 rounded overflow-hidden">{j.service}</Text>
           </View>
-          <Text className="text-forest-950 text-2xl font-bold mb-4">{j.title}</Text>
+          <Text className="text-ink text-2xl font-bold mb-4">{j.title}</Text>
 
           {restricted ? (
             <View className="p-4 rounded-md border border-danger bg-danger/10 mb-6">
               <Text className="text-danger font-bold mb-1">Restricted service</Text>
-              <Text className="text-forest-950 text-sm leading-5">
-                Aerial spraying needs additional regulatory approvals and evidence review. AgriDrone does not accept bids
+              <Text className="text-ink text-sm leading-5">
+                Aerial spraying needs additional regulatory approvals and evidence review. AgricDrone Hub does not accept bids
                 or assign operators for spraying jobs until that policy is in place.
               </Text>
             </View>
@@ -106,8 +107,8 @@ export default function JobDetailsScreen() {
 
           {j.status === "removed" ? (
             <View className="p-4 rounded-md border border-danger bg-danger/10 mb-6">
-              <Text className="text-danger font-bold mb-1">Removed by AgriDrone</Text>
-              <Text className="text-forest-950 text-sm leading-5">{j.removedReason}</Text>
+              <Text className="text-danger font-bold mb-1">Removed by AgricDrone Hub</Text>
+              <Text className="text-ink text-sm leading-5">{j.removedReason}</Text>
             </View>
           ) : null}
 
@@ -117,23 +118,23 @@ export default function JobDetailsScreen() {
               ["Area", `${j.areaHa} ha`],
               ["Date", j.preferredDate],
             ].map(([label, value]) => (
-              <View key={label} className="bg-cream p-3 rounded-md border border-muted/20 flex-1">
-                <Text className="text-muted text-[10px] uppercase font-bold mb-1">{label}</Text>
-                <Text className="text-forest-950 font-bold text-sm">{value}</Text>
+              <View key={label} className="bg-page p-3 rounded-md border border-line flex-1">
+                <Text className="text-muted text-xs font-medium mb-1">{label}</Text>
+                <Text className="text-ink font-bold text-sm">{value}</Text>
               </View>
             ))}
           </View>
 
-          <Text className="text-forest-950 font-bold text-lg mb-2">Job brief</Text>
+          <Text className="text-ink font-bold text-lg mb-2">Job brief</Text>
           <Text className="text-muted leading-6 mb-6">{j.brief}</Text>
 
-          <View className="p-4 bg-lime-soft rounded-lg border border-lime">
-            <Text className="text-muted text-xs uppercase font-bold mb-1">Posted by</Text>
-            <Text className="text-forest-950 font-bold">{isOwner ? "You" : j.postedBy}</Text>
+          <View className="p-4 bg-teal-soft rounded-lg border border-teal">
+            <Text className="text-muted text-xs font-medium mb-1">Posted by</Text>
+            <Text className="text-ink font-bold">{isOwner ? "You" : j.postedBy}</Text>
             {j.assignedOperatorId && j.assignedOperatorName ? (
               <Pressable onPress={() => router.push({ pathname: "/pilot", params: { id: j.assignedOperatorId! } })} className="mt-3">
-                <Text className="text-muted text-xs uppercase font-bold mb-1">Pilot</Text>
-                <Text className="text-forest-700 font-bold">{isAssigned ? "You" : `${j.assignedOperatorName} →`}</Text>
+                <Text className="text-muted text-xs font-medium mb-1">Pilot</Text>
+                <Text className="text-teal-ink font-bold">{isAssigned ? "You" : `${j.assignedOperatorName} →`}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -150,12 +151,12 @@ export default function JobDetailsScreen() {
         </View>
       </ScrollView>
 
-      <View className="bg-paper border-t border-muted/20 px-6 pt-4" style={{ paddingBottom: insets.bottom + 16 }}>
+      <View className="bg-paper border-t border-line px-6 pt-4" style={{ paddingBottom: insets.bottom + 16 }}>
         {footer.hint ? <Text className="text-muted text-sm mb-3">{footer.hint}</Text> : null}
         <View className="flex-row items-center justify-between">
           <View className="mr-4">
-            <Text className="text-muted text-xs uppercase font-bold">Budget</Text>
-            <Text className="text-forest-950 text-2xl font-bold">{formatZar(j.budgetZar)}</Text>
+            <Text className="text-muted text-xs font-medium">Budget</Text>
+            <Text className="text-ink text-2xl font-bold">{formatZar(j.budgetZar)}</Text>
           </View>
           {footer.button ? <View className="flex-1">{footer.button}</View> : null}
         </View>
@@ -216,12 +217,12 @@ function BidSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView className="flex-1 justify-end bg-forest-950/50" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView className="flex-1 justify-end bg-ink/50" behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Close bid sheet" />
         <View className="bg-paper rounded-t-lg px-6 pt-6" style={{ paddingBottom: insets.bottom + 16 }}>
-          <Text className="text-forest-950 text-2xl font-bold mb-1">Place a bid</Text>
+          <Text className="text-ink text-2xl font-bold mb-1">Place a bid</Text>
           <Text className="text-muted text-sm mb-5">Farm owner budget: {formatZar(budget)}</Text>
-          <View className="gap-y-4 mb-6">
+          <View className="gap-y-5 mb-6">
             <Field label="Your price (ZAR)" value={amount} onChangeText={setAmount} keyboardType="number-pad" error={submitted ? errors.amount : undefined} />
             <Field label="Estimated completion (days)" value={days} onChangeText={setDays} keyboardType="number-pad" error={submitted ? errors.days : undefined} />
             <Field label="Message to farm owner" placeholder="Equipment, availability, approach..." value={message} onChangeText={setMessage} multiline error={submitted ? errors.message : undefined} />

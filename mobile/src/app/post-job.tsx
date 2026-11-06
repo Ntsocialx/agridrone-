@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { BottomNav, Button, Chip, Field, HeroHeader } from "../components/ui";
@@ -51,10 +52,10 @@ export default function PostJobScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-cream" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <StatusBar style="light" />
+    <KeyboardAvoidingView className="flex-1 bg-page" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <StatusBar style="dark" />
       <HeroHeader eyebrow={`Hi ${user.fullName.split(" ")[0]},`} title="Post a job">
-        <Text className="text-paper/70 text-sm mt-1">Describe the work and verified operators will send you bids.</Text>
+        <Text className="text-muted text-sm mt-1">Describe the work and verified operators will send you bids.</Text>
       </HeroHeader>
 
       <ScrollView className="flex-1" contentContainerClassName="px-6 pt-6 pb-10" keyboardShouldPersistTaps="handled">
@@ -66,14 +67,14 @@ export default function PostJobScreen() {
         </View>
         {isRestricted(service) ? (
           <View className="p-3 rounded-md border border-danger bg-danger/10 mb-2">
-            <Text className="text-forest-950 text-sm">
+            <Text className="text-ink text-sm">
               Spraying jobs are published on compliance hold. Operators can see them but cannot bid until regulatory
               approvals are reviewed.
             </Text>
           </View>
         ) : null}
 
-        <View className="gap-y-4 mt-4 mb-6">
+        <View className="gap-y-5 mt-4 mb-6">
           <Field label="Job title" placeholder="e.g. Citrus orchard mapping" value={form.title} onChangeText={set("title")} error={show("title")} />
           <Field label="Farm location" placeholder="Farm name, Province" value={form.location} onChangeText={set("location")} error={show("location")} />
           <View className="flex-row gap-3">
@@ -84,8 +85,8 @@ export default function PostJobScreen() {
           <Field label="Description" placeholder="What do you need captured or analysed?" value={form.brief} onChangeText={set("brief")} multiline error={show("brief")} />
         </View>
 
-        <View className="bg-lime-soft p-4 rounded-md">
-          <Text className="text-forest-950 text-sm">Only operators verified by the AgriDrone admin team can bid on your job.</Text>
+        <View className="bg-teal-soft p-4 rounded-md">
+          <Text className="text-ink text-sm">Only operators verified by the AgricDrone Hub admin team can bid on your job.</Text>
         </View>
 
         {error ? (

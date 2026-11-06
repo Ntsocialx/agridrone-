@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,8 +8,8 @@ import { Button, Field, LegalFooter, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
 import { homeFor, useSession } from "../lib/session";
 
-// "A drone flying over a field of wheat" by Elisa Photography, Unsplash License.
-const BACKGROUND = "https://images.unsplash.com/photo-1657093114835-031e7cf9520c?auto=format&fit=crop&w=1200&q=80";
+// A drone hovering over a field, from Unsplash (Unsplash License).
+const BACKGROUND = "https://images.unsplash.com/photo-1521405924368-64c5b84bec60?auto=format&fit=crop&w=1200&q=80";
 
 type Mode = "member" | "admin";
 
@@ -43,10 +44,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 bg-forest-950">
+    <View className="flex-1 bg-ink">
       <StatusBar style="light" />
       <ImageBackground source={{ uri: BACKGROUND }} resizeMode="cover" className="absolute inset-0" />
-      <View className="absolute inset-0 bg-forest-950/60" />
+      <View className="absolute inset-0 bg-ink/60" />
 
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }} keyboardShouldPersistTaps="handled">
@@ -57,16 +58,16 @@ export default function LoginScreen() {
               accessibilityLabel="Back"
               className="self-start py-1 mb-10"
             >
-              <Text className="text-lime font-bold">← Back</Text>
+              <Text className="text-teal-light font-semibold">← Back</Text>
             </Pressable>
-            <Text className="text-lime text-xs font-bold tracking-widest uppercase mb-2">
-              {isAdmin ? "AgriDrone admin console" : "Drone Services, Simplified"}
+            <Text className="text-teal-light text-sm font-semibold mb-2">
+              {isAdmin ? "AgricDrone Hub admin console" : "AgricDrone Hub"}
             </Text>
             <Text className="text-white text-4xl font-bold leading-tight">{isAdmin ? "Admin\nsign-in" : "Welcome\nback"}</Text>
           </View>
 
-          <View className="bg-paper rounded-t-lg px-6 pt-6 mt-10" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="flex-row bg-cream rounded-full p-1 mb-6" accessibilityRole="tablist">
+          <View className="bg-paper rounded-t-lg px-6 pt-8 mt-10" style={{ paddingBottom: insets.bottom + 24 }}>
+            <View className="flex-row bg-page border border-line rounded-full p-1 mb-7" accessibilityRole="tablist">
               {(["member", "admin"] as const).map((m) => (
                 <Pressable
                   key={m}
@@ -76,9 +77,9 @@ export default function LoginScreen() {
                   }}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: mode === m }}
-                  className={`flex-1 py-2 rounded-full items-center ${mode === m ? "bg-forest-900" : ""}`}
+                  className={`flex-1 py-2 rounded-full items-center ${mode === m ? "bg-teal" : ""}`}
                 >
-                  <Text className={`font-bold text-sm ${mode === m ? "text-lime" : "text-muted"}`}>
+                  <Text className={`font-semibold text-sm ${mode === m ? "text-white" : "text-muted"}`}>
                     {m === "member" ? "Pilot or farm owner" : "Admin"}
                   </Text>
                 </Pressable>
@@ -87,11 +88,11 @@ export default function LoginScreen() {
 
             {isAdmin ? (
               <Text className="text-muted text-sm mb-4">
-                For AgriDrone staff. Admin accounts are created by the system owner and can&apos;t be signed up for.
+                For AgricDrone Hub staff. Admin accounts are created by the system owner and can&apos;t be signed up for.
               </Text>
             ) : null}
 
-            <View className="gap-y-4">
+            <View className="gap-y-5">
               <Field label="Email address" placeholder="email@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
               <PasswordField label="Password" placeholder="Your password" value={password} onChangeText={setPassword} autoComplete="current-password" onSubmitEditing={onSignIn} />
             </View>
@@ -101,7 +102,7 @@ export default function LoginScreen() {
               accessibilityRole="button"
               className="self-end py-3"
             >
-              <Text className="text-forest-700 font-bold text-sm">Forgot password?</Text>
+              <Text className="text-teal-ink font-bold text-sm">Forgot password?</Text>
             </Pressable>
 
             {error ? (
@@ -115,7 +116,7 @@ export default function LoginScreen() {
             {!isAdmin ? (
               <Pressable className="pt-5 items-center" onPress={() => router.replace("/register")} accessibilityRole="button">
                 <Text className="text-muted text-sm">
-                  New to AgriDrone? <Text className="text-forest-700 font-bold">Create an account</Text>
+                  New to AgricDrone Hub? <Text className="text-teal-ink font-bold">Create an account</Text>
                 </Text>
               </Pressable>
             ) : null}

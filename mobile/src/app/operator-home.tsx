@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Text, View, TextInput, ScrollView, RefreshControl } from "react-native";
+import { View, TextInput, ScrollView, RefreshControl } from "react-native";
+import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { JobCard } from "../components/JobCard";
@@ -33,17 +34,17 @@ export default function OperatorHomeScreen() {
   const status = STATUS[profile.data?.verificationStatus ?? "not_submitted"];
 
   return (
-    <View className="flex-1 bg-cream">
-      <StatusBar style="light" />
+    <View className="flex-1 bg-page">
+      <StatusBar style="dark" />
       <HeroHeader eyebrow="Welcome back," title={user.fullName.split(" ")[0]}>
-        <View className="bg-forest-800 p-4 rounded-md border border-forest-700 mt-5 flex-row items-center">
+        <View className="bg-teal-soft p-4 rounded-md border border-teal/30 mt-5 flex-row items-center">
           <View className="flex-1 mr-3">
-            <Text className="text-white font-bold text-lg mb-1">{status.title}</Text>
-            <Text className="text-paper/70 text-sm">{status.body}</Text>
+            <Text className="text-ink font-bold text-lg mb-1">{status.title}</Text>
+            <Text className="text-muted text-sm">{status.body}</Text>
           </View>
           <Text
             onPress={() => router.push("/operator-profile")}
-            className="bg-lime-soft text-forest-950 text-[10px] font-bold uppercase px-3 py-1 rounded-full overflow-hidden"
+            className="bg-teal-soft text-ink text-xs font-bold px-3 py-1 rounded-full overflow-hidden"
           >
             {status.pill}
           </Text>
@@ -60,11 +61,11 @@ export default function OperatorHomeScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search jobs or locations"
-          placeholderTextColor="#64706a99"
+          placeholderTextColor="#66737f99"
           accessibilityLabel="Search jobs"
           returnKeyType="search"
           clearButtonMode="while-editing"
-          className="bg-paper p-4 rounded-md border border-muted/20 text-forest-950 text-base mb-4"
+          className="bg-paper p-4 rounded-md border border-line text-ink text-base mb-4"
         />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 mb-6">
@@ -74,7 +75,7 @@ export default function OperatorHomeScreen() {
           ))}
         </ScrollView>
 
-        <Text className="text-forest-950 font-bold text-xl mb-4">
+        <Text className="text-ink font-bold text-xl mb-4">
           {jobs.data && (service || debounced) ? `${jobs.data.length} matching job${jobs.data.length === 1 ? "" : "s"}` : "Open jobs"}
         </Text>
 
@@ -85,7 +86,7 @@ export default function OperatorHomeScreen() {
         ) : jobs.data.length === 0 ? (
           <EmptyState title="No jobs found" body={service || debounced ? "Try a different search or category." : "New jobs from farm owners will show up here."} />
         ) : (
-          <View className="gap-y-4">
+          <View className="gap-y-5">
             {jobs.data.map((job) => (
               <JobCard key={job.id} job={job} onPress={() => router.push({ pathname: "/job-details", params: { id: job.id } })} />
             ))}
