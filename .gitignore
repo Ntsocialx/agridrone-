@@ -16,3 +16,8 @@
 Thumbs.db
 android/
 ios/
+
+# Android release signing key and passwords (never commit)
+mobile/credentials/*
+!mobile/credentials/README.md
+mobile/credentials.json
