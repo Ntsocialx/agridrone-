@@ -1,4 +1,7 @@
-# AgriDrone --- Coding Agent Rules
+# AgriDrone (AgricDrone Hub) --- Coding Agent Rules
+
+Version 1.1 · updated 10 November 2026 (Week 5) · Tiyani Nkuna (224732015)
+· 4IR | AgriSeta
 
 These rules apply to all work in this repository. If any instruction
 conflicts with a user-approved decision, stop and ask rather than
@@ -8,10 +11,14 @@ silently changing scope.
 
 -   Product: **AgriDrone**, a marketplace connecting farms with drone
     operators for lawful surveying, mapping, monitoring and inspection.
+    The on-screen app name is **AgricDrone Hub** (user decision,
+    2026-11-06); keep that spelling in all user-facing text.
 -   Preserve the existing root folders: `mobile/`, `server/`, `docs/`.
     Inspect before editing; do not replace working files or scaffold
     over existing code without approval.
--   `mobile/`: Expo + React Native + TypeScript + NativeWind.
+-   `mobile/`: Expo (SDK 58), React Native, TypeScript, Expo Router and
+    NativeWind. Runs in Expo Go, in a web browser, and as an Android
+    APK built with EAS (app ID `com.ir4.agridrone`).
 -   `server/`: Node.js + Express + TypeScript REST API.
 -   Database: Neon PostgreSQL. Upload provider: Cloudinary. Deployment
     target: Render for API.
@@ -19,10 +26,20 @@ silently changing scope.
     never grant `admin`.
 -   Auth: JWT; store mobile tokens in `expo-secure-store`, never plain
     AsyncStorage.
--   Job participation supports bidding and direct interest where the job
-    mode allows it; the farm owner makes final selection/confirmation.
--   MVP excludes payments, payouts and push notifications. In-app
-    notifications only.
+-   Job participation is by bidding (one bid per pilot per job); the
+    farm owner makes the final selection/confirmation. "Direct
+    interest" was in the original plan but is not built; add it only
+    with approval.
+-   MVP excludes payments and payouts. Notifications are in-app only
+    (personal notices plus admin broadcasts). Phone push notifications
+    are planned (Firebase) but paused; do not build them without
+    approval.
+-   Moderation (user decision, 2026-11-05): signed-in users can report
+    a job post (category + note). The admin can dismiss, resolve,
+    remove the post (status `removed`, reason shown to the owner) or
+    suspend the owner. Suspended users cannot sign in and their open
+    jobs are hidden; the admin can unsuspend. Every decision is
+    audited.
 -   Ratings/reviews are in the MVP (user decision, 2026-11-03): only the
     farm owner of a completed job may leave one 1–5 star rating and
     written review for the assigned operator. Reviews go live
@@ -40,10 +57,9 @@ silently changing scope.
     and git status before changing files.
 2.  Read this file and the TUT WIL Full-Stack Programme Student Guide
     v1.0 if available.
-3.  Inspect the AgriDrone Figma prototype:
-    https://www.figma.com/make/ZW17DSdkpWRKGq0wWrny3w/AgriDrone-Mobile-MVP-Redesign?t=MzOBXo6hj94YSum8-1
-    . Do not claim it was inspected unless it was. If inaccessible, ask
-    for exported screenshots/PDF and do not invent UI details.
+3.  Read the current design system (section 4). The original Figma
+    prototype was replaced by the AgricDrone Hub design on 2026-11-06
+    and is no longer the reference.
 4.  Before implementation, write `docs/prompts/00-project-plan.md`. It
     must include repository findings, requirements, assumptions,
     architecture, file-level changes, API/data proposals,
@@ -84,15 +100,26 @@ silently changing scope.
     obtain an authoritative source; do not present assumptions as
     source-derived facts.
 
-## 4. Design and Figma fidelity
+## 4. Design system
 
--   The Figma prototype is the primary visual reference. Before UI
-    implementation, document its screens, navigation, design tokens,
-    spacing, typography, components, interaction states and
-    responsive/device behaviour in `docs/design/figma-inventory.md`.
--   Reproduce the intended design rather than replacing it with a
-    generic template. If Figma cannot be accessed, stop UI
-    implementation and ask for exported frames/screenshots or a PDF.
+-   Since 2026-11-06 the visual reference is the **AgricDrone Hub**
+    design (modelled on the clean calculator style of
+    hellochoice.co.za, chosen by the user). The tokens live in
+    `mobile/tailwind.config.js`; use them instead of raw colours:
+    teal `#1dafa1` (primary), teal-ink `#0e7c72` (teal text),
+    teal-light `#7fe0d6`, ink `#22262a` (text), muted `#66737f`, page
+    `#fafafa`, white forms, line `#e0e6eb`, 6px corners, Inter font.
+    Pink `#ec4899` only for alerts/unread badges; yellow `#eab308`
+    only for on-hold status and stars.
+-   White headers, generous spacing, sentence-case labels, flat
+    surfaces (no gloss, glow or heavy shadows). The AgriSETA logo
+    (used with permission) is the main logo on the welcome screen.
+-   Import `Text` from `mobile/src/components/Text.tsx`, not from
+    `react-native`, so the Inter font weights apply.
+-   NativeWind `className` is not applied to `Animated.View` /
+    `Animated.Text`; style animated views with the `style` prop.
+-   `docs/design/figma-inventory.md` documents the old Figma
+    prototype and is kept for history only.
 -   If a mockup conflicts with security, accessibility or a confirmed
     requirement, document the conflict and propose the smallest
     necessary change for approval.
@@ -232,10 +259,14 @@ silently changing scope.
 
 ## 10. Job workflow and business invariants
 
--   Only eligible, sufficiently verified operators can bid/express
-    interest or be assigned to jobs that require verified credentials.
--   Job participation must respect `service_mode`: `bid`,
-    `direct_interest`, or `both`.
+-   Only eligible, sufficiently verified operators can bid or
+    be assigned to jobs that require verified credentials.
+-   Only `open` jobs accept bids. Spraying jobs are created `on_hold`
+    and the database blocks them from ever being assigned.
+-   Job status flow: `open` → `assigned` (owner selects a bid) →
+    `pending_confirmation` (pilot marks complete) → `completed` (owner
+    confirms) → owner may rate. `open`/`on_hold` jobs can be
+    `cancelled` by the owner or `removed` by an admin after a report.
 -   The farm owner who owns the job must select/confirm the candidate.
     Other farms and operators cannot change that decision.
 -   Enforce valid job status transitions on the server and database
@@ -269,8 +300,8 @@ Required golden journey: 1. Operator registers and accepts Terms &
 Conditions. 2. Operator completes profile and provides separate consent
 before uploading licence evidence. 3. Admin reviews and records
 approve/reject/resubmission-required with a reason. 4. Farm owner posts
-a compliant job. 5. Verified operator submits a bid or direct interest
-allowed by that job. 6. Farm owner reviews candidates and
+a compliant job. 5. Verified operator submits a bid on an open
+job. 6. Farm owner reviews candidates and
 selects/confirms one operator. 7. Both parties see the correct state and
 in-app notifications. 8. Tests prove that unverified operators,
 unauthorized users and non-admins are denied protected actions.
@@ -285,8 +316,18 @@ submissions and concurrent double selection.
 -   Use `.env.example` files containing placeholders only. Add real
     `.env` files, keys, tokens, certificates and keystores to
     `.gitignore`.
--   User configures Render, Neon and Cloudinary accounts/secrets. Never
-    ask them to paste secrets into chat.
+-   User configures Render, Neon, Cloudinary and Brevo accounts/secrets.
+    Never ask them to paste secrets into chat.
+-   The Android signing key lives only in `mobile/credentials/` and
+    `mobile/credentials.json` (both gitignored). Never commit or print
+    them. Every app update must be signed with the same key, and
+    `android.versionCode` in `mobile/app.json` must go up for each new
+    APK. Build APKs with EAS (`eas build -p android --profile
+    preview`); local Gradle builds fail on the lab PC (Windows path
+    length limit).
+-   The live API only accepts browser requests from the origins in
+    `CORS_ORIGINS` (currently `http://localhost:8081` for the web
+    preview). Phone apps are not affected.
 -   Server secrets must exist only in server-side environment variables.
     `EXPO_PUBLIC_*` values are visible to users and must contain no
     secrets.
@@ -312,5 +353,36 @@ submissions and concurrent double selection.
     plan, deployment runbook and logbook.
 -   Never auto-commit, push, publish, or deploy unless explicitly
     requested.
+-   Branches: new feature work goes to `dev`. Merge `dev` into `main`
+    (and `master`) only when the user approves: Render redeploys the
+    live API automatically whenever `main` changes.
 -   Keep AI-generated code understandable and explain meaningful
     decisions. Do not claim ownership of work the user has not reviewed.
+
+## 14. Current system snapshot (10 November 2026)
+
+-   **Live API:** https://agridrone-api-olnv.onrender.com/api/v1 (Render
+    free plan, Ohio; sleeps when idle, so the first request can take up
+    to a minute and the app shows a loading cover). 47 endpoints; see
+    `server/README.md` and the API documentation PDF.
+-   **Database:** Neon PostgreSQL (us-east-2), migrations
+    `001_core` to `006_avatars`, all applied in production.
+-   **Services:** Cloudinary (licences private, portfolio and profile
+    pictures public), Brevo (password-reset emails).
+-   **Tests:** 40 API tests (Vitest + Supertest + PGlite), all passing.
+    Mobile: `npx tsc --noEmit` and `npx expo lint` pass.
+-   **App:** 18 screens, including welcome, sign in/up, password reset,
+    job marketplace, post a job, job details and bidding, review bids,
+    rate a pilot, pilot and farm-owner profiles, edit details, change
+    password, notifications, report a job post and the admin console
+    (Pilots | Reports | Notify).
+-   **Android:** APK v1.0.0 (versionCode 1) built with EAS on
+    2026-11-09; it does not yet include the work on `dev`.
+-   **Paused (user-approved plan, not started):** animations, sound
+    effects (on by default, switch in Profile), haptics, phone push
+    notifications, delete account (anonymise), privacy policy draft,
+    Help page with FAQs and email support, offline banner. Ask before
+    starting any of them.
+-   **Still missing from the rules above:** an OpenAPI file, and the
+    `docs/privacy/` and `docs/compliance/` documents (sections 5, 8
+    and 9). Flag these rather than claiming they exist.
