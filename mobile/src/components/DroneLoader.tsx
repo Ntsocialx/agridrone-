@@ -13,7 +13,70 @@ const MESSAGES = [
   "Almost airborne…",
 ];
 
-const ROW_GAP = 22;
+/**
+ * Three see-through circles drifting around each other (from the Load.svg design, 800×600 canvas).
+ * `path` is the centre's keyframes, one every 0.1 s over a 2 s linear loop; `offset` is the
+ * circle's fixed offset from that point (the SVG's rotate(-43.065) translate(...), pre-computed).
+ */
+const ORBS = [
+  {
+    r: 75.067,
+    color: "#1dafa1",
+    offset: [0, 0],
+    path: "263.776 342.564; 270.01 342.849; 280.187 343.314; 297.721 344.115; 333.098 345.731; 433.679 350.327; 491.988 352.991; 516.776 354.124; 530.866 354.768; 540.04 355.187; 545.716 355.446; 544.214 362.109; 538.316 371.198; 522.404 380.387; 485.342 385.582; 379.19 372.582; 318.71 358.27; 293.306 351.334; 278.841 347.148; 269.613 344.375; 263.776 342.564",
+  },
+  {
+    r: 118,
+    color: "#0e7c72",
+    offset: [93.99, 3.18],
+    path: "361.777 165.918; 358.527 171.245; 353.221 179.941; 344.079 194.924; 325.635 225.154; 273.196 311.101; 242.796 360.927; 229.872 382.108; 222.526 394.149; 217.743 401.987; 214.784 406.838; 208.444 403.484; 200.669 395.581; 196.823 377.253; 209.195 340.931; 275.126 252.813; 319.213 206.544; 338.613 187.571; 349.823 176.941; 357.177 170.112; 361.777 165.918",
+  },
+  {
+    r: 105.46,
+    color: "#7fe0d6",
+    offset: [34.63, 1.17],
+    path: "456.419 423.252; 449.227 420.796; 437.977 416.626; 419.094 408.557; 383.323 387.989; 327.673 289.427; 341.707 222.981; 354.038 196.852; 362.316 182.299; 367.923 173.287; 371.703 167.513; 373.576 173.167; 376.634 182.399; 381.903 198.303; 392.533 230.393; 422.755 321.627; 440.275 374.517; 447.723 397.001; 451.957 409.782; 454.713 418.103; 456.419 423.252",
+  },
+].map(({ path, ...orb }) => ({ ...orb, points: path.split("; ").map((p) => p.split(" ").map(Number)) }));
+
+const ORB_KEYTIMES = ORBS[0].points.map((_, i) => i / (ORBS[0].points.length - 1));
+// Area the circles ever cover on the 800×600 canvas, scaled down to fit the loader.
+const ORB_AREA = { x: 170, y: 48, w: 456, h: 484 };
+const ORB_SCALE = 0.45;
+
+function Orbs({ still }: { still: boolean }) {
+  const t = useState(() => new Animated.Value(0))[0];
+  useLoop(() => Animated.timing(t, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }), still);
+
+  return (
+    <View style={{ width: ORB_AREA.w * ORB_SCALE, height: ORB_AREA.h * ORB_SCALE }}>
+      {ORBS.map(({ r, color, offset, points }) => {
+        const size = r * 2 * ORB_SCALE;
+        const along = (axis: 0 | 1, start: number) =>
+          t.interpolate({
+            inputRange: ORB_KEYTIMES,
+            outputRange: points.map((p) => (p[axis] + offset[axis] - r - start) * ORB_SCALE),
+          });
+        return (
+          <Animated.View
+            key={color}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: color,
+              opacity: 0.55,
+              transform: [{ translateX: along(0, ORB_AREA.x) }, { translateY: along(1, ORB_AREA.y) }],
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
 
 /** Starts `anim` as an endless loop unless the user prefers reduced motion. */
 function useLoop(make: () => Animated.CompositeAnimation, still: boolean) {
@@ -164,34 +227,14 @@ export function DroneSpinner({ label = "Loading…" }: { label?: string }) {
   );
 }
 
-/** Full-screen "drone surveying a field" scene shown while the server is slow. */
-function DroneScene() {
+/** Full-screen loading scene (drifting circles, status messages, progress bar) shown while the server is slow. */
+function LoadingScene() {
   const still = useReduceMotion();
-  const rows = useState(() => new Animated.Value(0))[0];
-  const sweep = useState(() => new Animated.Value(0))[0];
-  const beam = useState(() => new Animated.Value(0))[0];
   const bar = useState(() => new Animated.Value(0))[0];
   const fade = useState(() => new Animated.Value(1))[0];
   const [message, setMessage] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
-  useLoop(() => Animated.timing(rows, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }), still);
-  useLoop(
-    () =>
-      Animated.sequence([
-        Animated.timing(sweep, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(sweep, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    still,
-  );
-  useLoop(
-    () =>
-      Animated.sequence([
-        Animated.timing(beam, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(beam, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ]),
-    still,
-  );
   useLoop(() => Animated.timing(bar, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }), still);
 
   // Rotate the status line, cross-fading between messages.
@@ -208,54 +251,19 @@ function DroneScene() {
 
   return (
     <View className="items-center px-8" accessibilityRole="progressbar" accessibilityLabel="Loading" accessibilityLiveRegion="polite">
-      <View style={{ width: 260, height: 220 }} className="items-center">
-        <Drone scale={1.2} still={still} />
+      <Orbs still={still} />
 
-        {/* camera beam */}
-        <Animated.View
-          style={{
-            marginTop: -8,
-            width: 0,
-            height: 0,
-            borderLeftWidth: 70,
-            borderRightWidth: 70,
-            borderTopWidth: 72,
-            borderLeftColor: "transparent",
-            borderRightColor: "transparent",
-            borderTopColor: "rgba(29,175,161,0.18)",
-            opacity: beam.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
-          }}
-        />
-
-        {/* field: crop rows scrolling underneath, with a sweeping scan line */}
-        <View style={{ width: 260, height: 70, overflow: "hidden", borderRadius: 14 }} className="bg-field">
-          <Animated.View
-            style={{
-              flexDirection: "row",
-              height: "100%",
-              transform: [{ translateX: rows.interpolate({ inputRange: [0, 1], outputRange: [0, -ROW_GAP] }) }],
-            }}
-          >
-            {Array.from({ length: 16 }, (_, i) => (
-              <View key={i} style={{ width: ROW_GAP, height: "100%", alignItems: "center" }}>
-                <View style={{ width: 8, height: "100%", backgroundColor: i % 3 === 0 ? "#7fe0d633" : "#0e7c72" }} />
-              </View>
-            ))}
-          </Animated.View>
-          <Animated.View
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              width: 3,
-              backgroundColor: "#7fe0d6",
-              transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [8, 249] }) }],
-            }}
-          />
-        </View>
-      </View>
-
-      <Animated.Text style={{ opacity: fade }} className="text-ink font-bold text-lg mt-6 text-center">
+      <Animated.Text
+        style={{
+          opacity: fade,
+          color: "#22262a",
+          fontFamily: "Inter_700Bold",
+          fontSize: 18,
+          lineHeight: 28,
+          marginTop: 24,
+          textAlign: "center",
+        }}
+      >
         {MESSAGES[message]}
       </Animated.Text>
 
@@ -293,10 +301,20 @@ export function SlowOverlay() {
   if (!slow) return null;
   return (
     <Animated.View
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity }}
-      className="bg-page/95 items-center justify-center"
+      // Plain styles: NativeWind className isn't applied to Animated.View.
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity,
+        backgroundColor: "rgba(250,250,250,0.95)", // page colour
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <DroneScene />
+      <LoadingScene />
     </Animated.View>
   );
 }
