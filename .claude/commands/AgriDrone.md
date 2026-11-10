@@ -13,7 +13,7 @@ Farm owner posts job → approved pilot bids → owner selects a bid (job `assig
 ## Stack and layout
 - `mobile/`: Expo SDK 58, React Native 0.88, React 19.3, Expo Router (typed routes, `Stack.Protected`), NativeWind v4 (`darkMode: "class"`), react-native-svg, react-native-web. Session is stored in expo-secure-store on phones and localStorage on web.
   - Screens in `mobile/src/app/`: index (welcome), login, register, forgot-password, operator-home, operator-profile, my-jobs, post-job, job-details, review-bids, pilot, rate, admin.
-  - Shared UI in `mobile/src/components/`: `ui.tsx` (Field, PasswordField, Button, LegalFooter, BottomNav…), `JobCard.tsx`, `DroneLoader.tsx` (side-view SVG quadcopter, `SlowOverlay` while the free server wakes).
+  - Shared UI in `mobile/src/components/`: `ui.tsx` (Field, PasswordField, Button, LegalFooter, BottomNav…), `JobCard.tsx`, `DroneLoader.tsx` (`SlowOverlay` full-screen cover while the free server wakes: three drifting see-through teal circles from the Load.svg design + status messages + progress bar; `DroneSpinner` small in-screen loader keeps the side-view SVG drone).
   - API client: `mobile/src/lib/api.ts`. Session context: `mobile/src/lib/session.tsx`.
 - `server/`: Express 5 + TypeScript, Zod v4, pg (Neon), JWT (1h), bcryptjs, helmet, rate limits. Tests use Vitest + PGlite (`npm test`, 29 passing). Routes are in `server/src/routes/` (auth, jobs, operators, reviews, uploads). Migrations `server/migrations/001–004` are plain SQL; never edit an applied one.
 - `render.yaml`: Blueprint for the API. `docs/prompts/`: stage plans. `docs/design/figma-make/`: where the Figma Make export should go.
@@ -63,7 +63,7 @@ Farm owner posts job → approved pilot bids → owner selects a bid (job `assig
 ## How to work with this user
 - **Ask, don't guess** on product, design or flow decisions (use AskUserQuestion). Pick obvious technical defaults yourself and say so.
 - Explain in plain English with step-by-step instructions. The user is on Windows with PowerShell, in VS Code.
-- After a change: run `npx tsc --noEmit` and `npx expo lint` in `mobile/` (and `npm test` in `server/` for API changes), then commit and push to **main, dev and master** (`git push origin main && git push origin main:dev && git push origin main:master`). Scan for secrets before committing.
+- After a change: run `npx tsc --noEmit` and `npx expo lint` in `mobile/` (and `npm test` in `server/` for API changes), then commit and push to **dev** (new feature work happens on `dev` since 2026-11-10). Only merge dev into main (and master) when the user says so: Render redeploys the live API from main. Scan for secrets before committing.
 - To check the UI visually while the user's Expo server runs on http://localhost:8081: launch headless Chrome with `--remote-debugging-port`, then capture a 390×844 mobile screenshot over the Chrome DevTools protocol after waiting about 7s for animations.
 - After installing packages, tell the user to restart with `npx expo start --clear`.
 - Never put secrets in chat, and never run production migrations without the user's approval.
