@@ -4,6 +4,8 @@ import { Platform } from "react-native";
 
 // Override with EXPO_PUBLIC_API_URL (e.g. http://<laptop-ip>:3000/api/v1) for local dev.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://agridrone-api-olnv.onrender.com/api/v1";
+/** Admins work on the website (admin-web/, hosted on Vercel), not in the app. */
+export const ADMIN_WEBSITE_URL = "https://admin-web-swart-nine.vercel.app";
 
 export type Role = "operator" | "farm_owner" | "admin";
 export type User = { id: string; role: Role; fullName: string };

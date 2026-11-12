@@ -12,8 +12,8 @@ type Session = {
 
 const SessionContext = createContext<Session | null>(null);
 
-export const homeFor = (role: Role): Href =>
-  role === "operator" ? "/operator-home" : role === "farm_owner" ? "/my-jobs" : "/admin";
+// Admins use the admin website, so the app never signs them in (see login.tsx).
+export const homeFor = (role: Role): Href => (role === "operator" ? "/operator-home" : role === "farm_owner" ? "/my-jobs" : "/");
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,7 +31,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     session
       .load()
-      .then((saved) => setUser(saved?.user ?? null))
+      .then(async (saved) => {
+        // An admin session saved by an older app version: admins now use the website.
+        if (saved?.user.role === "admin") {
+          await session.clear();
+          return setUser(null);
+        }
+        setUser(saved?.user ?? null);
+      })
       .finally(() => setReady(true));
   }, [signOut]);
 

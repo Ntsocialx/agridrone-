@@ -35,7 +35,6 @@ function RootStack() {
         <Stack.Screen name="review-bids" />
         <Stack.Screen name="pilot" />
         <Stack.Screen name="rate" />
-        <Stack.Screen name="admin" />
       </Stack.Protected>
     </Stack>
   );
