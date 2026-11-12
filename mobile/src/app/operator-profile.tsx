@@ -6,6 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AccountCard } from "../components/AccountCard";
 import { FeedbackSwitches } from "../components/FeedbackSwitches";
+import { HelpLink } from "../components/HelpLink";
 import { ProfilePhoto } from "../components/ProfilePhoto";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading, SignOutButton } from "../components/ui";
 import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PickedFile, type PilotProfile, type Service } from "../lib/api";
@@ -277,6 +278,9 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
           <AccountCard />
           <Text className="text-ink font-bold mt-8 mb-3 text-base">Sounds and vibration</Text>
           <FeedbackSwitches />
+          <View className="mt-4">
+            <HelpLink />
+          </View>
           <View className="mt-8">
             <SignOutButton />
           </View>

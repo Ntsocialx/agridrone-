@@ -98,6 +98,9 @@ export default function RegisterScreen() {
           I have read and accept the Terms of Service and the Privacy Notice, including how AgricDrone Hub processes my
           personal information under POPIA.
         </Checkbox>
+        <Pressable onPress={() => router.push("/privacy")} accessibilityRole="link" className="self-start ml-9 mt-2 py-1">
+          <Text className="text-teal-ink font-bold text-sm">Read the Privacy policy</Text>
+        </Pressable>
         {submitted && !accepted ? <Text className="text-danger text-xs mt-2 ml-9">Please accept to continue</Text> : null}
 
         {serverError ? (

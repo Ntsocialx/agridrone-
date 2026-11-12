@@ -3,6 +3,7 @@ import { Text } from "../components/Text";
 import { StatusBar } from "expo-status-bar";
 import { AccountCard } from "../components/AccountCard";
 import { FeedbackSwitches } from "../components/FeedbackSwitches";
+import { HelpLink } from "../components/HelpLink";
 import { ProfilePhoto } from "../components/ProfilePhoto";
 import { BottomNav, HeroHeader, SignOutButton } from "../components/ui";
 import { useUser } from "../lib/session";
@@ -28,6 +29,9 @@ export default function OwnerProfileScreen() {
         <AccountCard />
         <Text className="text-ink font-bold mt-8 mb-3 text-base">Sounds and vibration</Text>
         <FeedbackSwitches />
+        <View className="mt-4">
+          <HelpLink />
+        </View>
         <View className="mt-8">
           <SignOutButton />
         </View>
