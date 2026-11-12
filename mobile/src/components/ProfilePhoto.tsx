@@ -4,6 +4,7 @@ import { Text } from "./Text";
 import * as ImagePicker from "expo-image-picker";
 import Svg, { Circle, Path } from "react-native-svg";
 import { ApiError, api, uploadFile, type Me, type PickedFile } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi } from "../lib/session";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -44,13 +45,16 @@ export function ProfilePhoto({ name, size = 64 }: { name: string; size?: number 
   const [error, setError] = useState<string | null>(null);
   const url = me.data?.avatarUrl ?? null;
 
-  const run = async (work: () => Promise<void>) => {
+  const run = async (work: () => Promise<boolean | void>, done?: string) => {
     setBusy(true);
     setError(null);
     try {
-      await work();
+      // `work` returns false when the person cancelled the picker: nothing to celebrate.
+      const changed = (await work()) !== false;
       await me.reload();
+      if (changed && done) celebrate(done);
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Couldn't update your photo. Try again.");
     } finally {
       setBusy(false);
@@ -60,11 +64,11 @@ export function ProfilePhoto({ name, size = 64 }: { name: string; size?: number 
   const upload = (source: "camera" | "library") =>
     run(async () => {
       const file = await pick(source);
-      if (!file) return;
+      if (!file) return false;
       const publicId = await uploadFile("avatar", file);
       await api("/me/avatar", { method: "PUT", body: { publicId } });
-    });
-  const remove = () => run(() => api("/me/avatar", { method: "DELETE" }));
+    }, "Profile picture updated");
+  const remove = () => run(() => api("/me/avatar", { method: "DELETE" }), "Profile picture removed");
 
   const choose = () => {
     // Web has no action sheet; the browser's file chooser is the natural fit there.

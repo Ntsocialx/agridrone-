@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Animated, Easing, View, Text, Image, Pressable } from 'react-native';
 import { formatZar, serviceImage, type Job } from '../lib/api';
+import { useReduceMotion } from './DroneLoader';
 import { StatusPill } from './ui';
 
 interface JobCardProps {
@@ -11,7 +12,15 @@ interface JobCardProps {
 }
 
 export const JobCard = ({ job, onPress, hint }: JobCardProps) => {
+  // Fades and slides up a little when it first appears.
+  const still = useReduceMotion();
+  const appear = useState(() => new Animated.Value(0))[0];
+  useEffect(() => {
+    Animated.timing(appear, { toValue: 1, duration: still ? 0 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [appear, still]);
+
   return (
+    <Animated.View style={{ opacity: appear, transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
@@ -42,5 +51,6 @@ export const JobCard = ({ job, onPress, hint }: JobCardProps) => {
         {hint ? <Text className="text-teal-ink text-sm font-bold mt-2">{hint} →</Text> : null}
       </View>
     </Pressable>
+    </Animated.View>
   );
 };

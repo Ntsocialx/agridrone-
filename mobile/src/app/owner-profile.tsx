@@ -2,6 +2,7 @@ import { View, ScrollView } from "react-native";
 import { Text } from "../components/Text";
 import { StatusBar } from "expo-status-bar";
 import { AccountCard } from "../components/AccountCard";
+import { FeedbackSwitches } from "../components/FeedbackSwitches";
 import { ProfilePhoto } from "../components/ProfilePhoto";
 import { BottomNav, HeroHeader, SignOutButton } from "../components/ui";
 import { useUser } from "../lib/session";
@@ -25,6 +26,8 @@ export default function OwnerProfileScreen() {
           </View>
         </View>
         <AccountCard />
+        <Text className="text-ink font-bold mt-8 mb-3 text-base">Sounds and vibration</Text>
+        <FeedbackSwitches />
         <View className="mt-8">
           <SignOutButton />
         </View>

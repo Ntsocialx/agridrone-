@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { BottomNav, Button, Chip, Field, HeroHeader } from "../components/ui";
 import { ApiError, SERVICES, api, isRestricted, type Job, type Service } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useUser } from "../lib/session";
 
 export default function PostJobScreen() {
@@ -28,7 +29,7 @@ export default function PostJobScreen() {
 
   const onPublish = async () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     setBusy(true);
     setError(null);
     try {
@@ -43,8 +44,10 @@ export default function PostJobScreen() {
           brief: form.brief.trim(),
         },
       });
+      celebrate("Job posted");
       router.replace({ pathname: "/job-details", params: { id: job.id } });
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

@@ -3,19 +3,28 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, us
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { SlowOverlay } from "../components/DroneLoader";
+import { SlowOverlay, useReduceMotion } from "../components/DroneLoader";
 import { OfflineFrame } from "../components/OfflineBanner";
+import { SuccessTick } from "../components/SuccessTick";
 import { wakeServer } from "../lib/api";
 import { SessionProvider, useSession } from "../lib/session";
 
 function RootStack() {
   const { user, ready } = useSession();
+  const reduceMotion = useReduceMotion();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
   // Keep the splash screen up until the saved session and fonts are ready (system font if Inter fails).
   if (!ready || (!fontsLoaded && !fontError)) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#fafafa" } }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#fafafa" },
+        // New screens slide in from the right; a simple fade if the phone asks for reduced motion.
+        animation: reduceMotion ? "fade" : "slide_from_right",
+      }}
+    >
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
@@ -51,6 +60,7 @@ export default function RootLayout() {
         <OfflineFrame>
           <RootStack />
           <SlowOverlay />
+          <SuccessTick />
         </OfflineFrame>
       </SessionProvider>
     </SafeAreaProvider>

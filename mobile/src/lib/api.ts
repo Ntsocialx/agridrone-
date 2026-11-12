@@ -108,7 +108,7 @@ let token: string | null = null;
 let onUnauthorized: () => void = () => {};
 
 // SecureStore is native-only; the browser preview (for development) falls back to localStorage.
-const store =
+export const store =
   Platform.OS === "web"
     ? {
         getItemAsync: async (key: string) => localStorage.getItem(key),

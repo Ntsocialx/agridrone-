@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, Stars } from "../components/ui";
 import { ApiError, api, type Job } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi } from "../lib/session";
 
 const LABELS = ["", "Poor", "Below expectations", "Good", "Very good", "Excellent"];
@@ -24,13 +25,15 @@ export default function RateScreen() {
 
   const submit = async () => {
     setSubmitted(true);
-    if (errors.rating || errors.comment || !job.data) return;
+    if (errors.rating || errors.comment || !job.data) return oops();
     setBusy(true);
     setError(null);
     try {
       await api("/reviews", { body: { jobId, rating, comment: comment.trim() } });
+      celebrate("Pilot rated");
       router.replace({ pathname: "/pilot", params: { id: job.data.assignedOperatorId! } });
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

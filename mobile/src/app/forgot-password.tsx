@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { homeFor, useSession } from "../lib/session";
 
 /** Two steps: request an emailed 6-digit code, then enter it with a new password. */
@@ -26,6 +27,7 @@ export default function ForgotPasswordScreen() {
     try {
       await work();
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
@@ -33,7 +35,10 @@ export default function ForgotPasswordScreen() {
   };
 
   const sendCode = () => {
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter the email address you signed up with.");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      oops();
+      return setError("Enter the email address you signed up with.");
+    }
     void run(async () => {
       const { message } = await api<{ message: string }>("/auth/password/forgot", { body: { email: email.trim() } });
       setNotice(message);
@@ -50,12 +55,13 @@ export default function ForgotPasswordScreen() {
 
   const resetPassword = () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     void run(async () => {
       const { token, user } = await api<{ token: string; user: User }>("/auth/password/reset", {
         body: { email: email.trim(), code, newPassword: password },
       });
       await signIn(token, user);
+      celebrate("Password reset");
       router.replace(homeFor(user.role));
     });
   };

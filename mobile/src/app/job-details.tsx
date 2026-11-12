@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, ErrorState, Field, Loading, StatusPill } from "../components/ui";
 import { ApiError, api, formatZar, isRestricted, serviceImage, type Bid, type Job, type OperatorProfile } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi, useUser } from "../lib/session";
 
 type JobDetail = Job & { bids: Bid[] };
@@ -44,7 +45,9 @@ export default function JobDetailsScreen() {
           setBusy(true);
           try {
             job.setData({ ...(await api<Job>(`/jobs/${j.id}/${path}`, { method: "POST" })), bids: j.bids });
+            celebrate(path === "confirm" ? "Job confirmed complete" : "Marked complete");
           } catch (e) {
+            oops();
             Alert.alert("Couldn't update the job", e instanceof ApiError ? e.message : "Please try again.");
           } finally {
             setBusy(false);
@@ -169,6 +172,7 @@ export default function JobDetailsScreen() {
         onSubmit={async (amountZar, days, message) => {
           await api(`/jobs/${j.id}/bids`, { body: { amountZar, days, message } });
           setSheetOpen(false);
+          celebrate("Bid sent");
           await job.reload();
         }}
       />
@@ -203,12 +207,13 @@ function BidSheet({
 
   const submit = async () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     setBusy(true);
     setError(null);
     try {
       await onSubmit(Number(amount), Number(days), message.trim());
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

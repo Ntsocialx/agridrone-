@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, Checkbox, Field, PasswordField } from "../components/ui";
 import { ApiError, api, type User } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useSession } from "../lib/session";
 
 type Role = "operator" | "farm_owner";
@@ -35,7 +36,7 @@ export default function RegisterScreen() {
 
   const onContinue = async () => {
     setSubmitted(true);
-    if (!valid) return;
+    if (!valid) return oops();
     setBusy(true);
     setServerError(null);
     try {
@@ -43,8 +44,10 @@ export default function RegisterScreen() {
         body: { email: form.email.trim(), password: form.password, fullName: form.name.trim(), phone: form.phone.trim(), role, acceptTerms: true },
       });
       await signIn(token, user);
+      celebrate("Account created");
       router.replace(role === "operator" ? "/operator-profile" : "/post-job");
     } catch (e) {
+      oops();
       setServerError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

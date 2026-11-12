@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, PasswordField } from "../components/ui";
 import { ApiError, api } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 
 export default function ChangePasswordScreen() {
   const [current, setCurrent] = useState("");
@@ -22,13 +23,15 @@ export default function ChangePasswordScreen() {
 
   const onSave = async () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     setBusy(true);
     setError(null);
     try {
       await api("/me/password", { body: { currentPassword: current, newPassword: password } });
       setDone(true);
+      celebrate("Password changed");
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, EmptyState, ErrorState, Field, Loading, Stars } from "../components/ui";
 import { ApiError, api, formatDate, type PilotProfile, type Review } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi, useUser } from "../lib/session";
 
 export default function PilotProfileScreen() {
@@ -156,13 +157,18 @@ function ReviewCard({ review, canReport }: { review: Review; canReport: boolean 
   const [reported, setReported] = useState(false);
 
   const submit = async () => {
-    if (reason.trim().length < 5) return Alert.alert("Add a reason", "Tell the admin team what's wrong with this review (5+ characters).");
+    if (reason.trim().length < 5) {
+      oops();
+      return Alert.alert("Add a reason", "Tell the admin team what's wrong with this review (5+ characters).");
+    }
     setBusy(true);
     try {
       await api(`/reviews/${review.id}/report`, { body: { reason: reason.trim() } });
       setReported(true);
       setReporting(false);
+      celebrate("Review reported");
     } catch (e) {
+      oops();
       Alert.alert("Couldn't report this review", e instanceof ApiError ? e.message : "Please try again.");
     } finally {
       setBusy(false);

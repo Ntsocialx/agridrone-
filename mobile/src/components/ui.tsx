@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Animated, Linking, Pressable, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
@@ -75,16 +75,23 @@ export function Button({ label, onPress, variant = "primary", disabled, busy }: 
     danger: ["bg-paper border border-danger", "text-danger", "#d64545"],
   }[variant];
   const inactive = disabled || busy;
+  // Presses down slightly while touched.
+  const scale = useState(() => new Animated.Value(1))[0];
+  const pressTo = (value: number) => Animated.spring(scale, { toValue: value, speed: 40, bounciness: 6, useNativeDriver: true }).start();
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={inactive}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: inactive, busy }}
-      className={`py-3.5 px-5 rounded-md items-center active:opacity-80 ${styles[0]} ${disabled ? "opacity-40" : ""}`}
-    >
-      {busy ? <ActivityIndicator color={styles[2]} /> : <Text className={`font-semibold text-base ${styles[1]}`}>{label}</Text>}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => pressTo(0.97)}
+        onPressOut={() => pressTo(1)}
+        disabled={inactive}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: inactive, busy }}
+        className={`py-3.5 px-5 rounded-md items-center active:opacity-80 ${styles[0]} ${disabled ? "opacity-40" : ""}`}
+      >
+        {busy ? <ActivityIndicator color={styles[2]} /> : <Text className={`font-semibold text-base ${styles[1]}`}>{label}</Text>}
+      </Pressable>
+    </Animated.View>
   );
 }
 

@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Field, LegalFooter, PasswordField } from "../components/ui";
 import { ADMIN_WEBSITE_URL, ApiError, api, type User } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { homeFor, useSession } from "../lib/session";
 
 // A drone hovering over a field, from Unsplash (Unsplash License).
@@ -21,7 +22,10 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const onSignIn = async () => {
-    if (!email.trim() || !password) return setError("Enter your email and password.");
+    if (!email.trim() || !password) {
+      oops();
+      return setError("Enter your email and password.");
+    }
     setBusy(true);
     setError(null);
     setAdminAccount(false);
@@ -33,8 +37,10 @@ export default function LoginScreen() {
         return;
       }
       await signIn(token, user);
+      celebrate("Signed in");
       router.replace(homeFor(user.role));
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

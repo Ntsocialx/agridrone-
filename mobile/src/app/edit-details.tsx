@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, PasswordField } from "../components/ui";
 import { ApiError, api, type Me } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi, useSession } from "../lib/session";
 
 export default function EditDetailsScreen() {
@@ -40,7 +41,7 @@ function DetailsForm({ me }: { me: Me }) {
 
   const onSave = async () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     setBusy(true);
     setError(null);
     try {
@@ -54,8 +55,10 @@ function DetailsForm({ me }: { me: Me }) {
         },
       });
       await updateUser({ id: updated.id, role: updated.role, fullName: updated.fullName });
+      celebrate("Details saved");
       router.back();
     } catch (e) {
+      oops();
       setError(e instanceof ApiError ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);

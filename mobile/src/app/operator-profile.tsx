@@ -5,9 +5,11 @@ import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AccountCard } from "../components/AccountCard";
+import { FeedbackSwitches } from "../components/FeedbackSwitches";
 import { ProfilePhoto } from "../components/ProfilePhoto";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading, SignOutButton } from "../components/ui";
 import { ApiError, SERVICES, api, isRestricted, uploadFile, type OperatorProfile, type PickedFile, type PilotProfile, type Service } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi, useUser } from "../lib/session";
 
 const STATUS_COPY = {
@@ -92,6 +94,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     try {
       await work();
     } catch (e) {
+      oops();
       setError(message(e));
     } finally {
       setBusy(null);
@@ -106,6 +109,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
       const publicId = await uploadFile("licence", file);
       await api("/operators/me/licence", { body: { publicId } });
       await reload();
+      celebrate("Licence uploaded");
     });
 
   // Most people keep a licence photo in their camera roll, not in Files.
@@ -123,6 +127,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
       const publicId = await uploadFile("portfolio", photo);
       await api("/operators/me/portfolio", { body: { publicId, caption: "" } });
       await pilot.reload();
+      celebrate("Photo added");
     });
 
   const deletePhoto = (id: string) =>
@@ -141,10 +146,11 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
 
   const onSubmit = () => {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    if (Object.values(errors).some(Boolean)) return oops();
     void run("submit", async () => {
       await api("/operators/me", { method: "PUT", body: { base: base.trim(), radiusKm: Number(radius), services } });
       await api("/operators/me/submit", { method: "POST" });
+      celebrate("Sent for verification");
       router.replace("/operator-home");
     });
   };
@@ -269,6 +275,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
           )}
           <Text className={`text-ink font-bold mb-3 text-base ${locked ? "" : "mt-10"}`}>Account</Text>
           <AccountCard />
+          <Text className="text-ink font-bold mt-8 mb-3 text-base">Sounds and vibration</Text>
+          <FeedbackSwitches />
           <View className="mt-8">
             <SignOutButton />
           </View>

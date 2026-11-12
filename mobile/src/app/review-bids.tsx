@@ -4,6 +4,7 @@ import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, EmptyState, ErrorState, Loading } from "../components/ui";
 import { ApiError, api, formatZar, type Bid, type Job } from "../lib/api";
+import { celebrate, oops } from "../lib/feedback";
 import { useApi } from "../lib/session";
 
 type JobDetail = Job & { bids: Bid[] };
@@ -23,8 +24,10 @@ export default function ReviewBidsScreen() {
           setBusyId(bid.id);
           try {
             await api(`/jobs/${jobId}/select`, { body: { bidId: bid.id } });
+            celebrate("Pilot chosen");
             router.replace({ pathname: "/job-details", params: { id: jobId } });
           } catch (e) {
+            oops();
             Alert.alert("Couldn't select this operator", e instanceof ApiError ? e.message : "Please try again.");
             await job.reload();
           } finally {
