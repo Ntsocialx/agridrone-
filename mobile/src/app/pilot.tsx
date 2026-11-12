@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Image, View, ScrollView, Pressable } from "react-native";
+import { Alert, Image, View, ScrollView, Pressable, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -18,9 +18,9 @@ export default function PilotProfileScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace("/my-jobs"));
 
   return (
-    <View className="flex-1 bg-page">
+    <KeyboardAvoidingView className="flex-1 bg-page" behavior="padding">
       <StatusBar style="dark" />
-      <ScrollView className="flex-1" contentContainerClassName="pb-12">
+      <ScrollView className="flex-1" contentContainerClassName="pb-12" keyboardShouldPersistTaps="handled">
         <View className="bg-paper px-6 pb-8 border-b border-line" style={{ paddingTop: insets.top + 12 }}>
           <Pressable onPress={back} accessibilityRole="button" accessibilityLabel="Back" className="self-start py-1 mb-6">
             <Text className="text-teal-ink font-semibold">← Back</Text>
@@ -126,7 +126,7 @@ export default function PilotProfileScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

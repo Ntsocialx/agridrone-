@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Pressable, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, Checkbox, Field, PasswordField } from "../components/ui";
@@ -52,7 +52,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader title="Create account" subtitle={role === "operator" ? "Step 1 of 2" : "Join the AgricDrone Hub network"} />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         <Text className="text-ink font-bold mb-3 text-base">Select your role</Text>

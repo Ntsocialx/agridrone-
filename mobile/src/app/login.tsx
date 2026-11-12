@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable, ImageBackground } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Pressable, ImageBackground } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -49,7 +49,7 @@ export default function LoginScreen() {
       <ImageBackground source={{ uri: BACKGROUND }} resizeMode="cover" className="absolute inset-0" />
       <View className="absolute inset-0 bg-ink/60" />
 
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }} keyboardShouldPersistTaps="handled">
           <View className="px-6" style={{ paddingTop: insets.top + 12 }}>
             <Pressable

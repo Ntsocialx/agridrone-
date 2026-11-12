@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, PasswordField } from "../components/ui";
@@ -9,7 +9,7 @@ import { useApi, useSession } from "../lib/session";
 export default function EditDetailsScreen() {
   const me = useApi<Me>("/me");
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader title="Edit details" subtitle="Keep your contact details up to date" />
       {me.data ? (
         <DetailsForm me={me.data} />

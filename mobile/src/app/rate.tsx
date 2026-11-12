@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, ErrorState, Field, Loading, Stars } from "../components/ui";
@@ -39,7 +39,7 @@ export default function RateScreen() {
 
   const j = job.data;
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader title="Rate your pilot" subtitle={j?.assignedOperatorName ?? undefined} fallback="/my-jobs" />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         {job.error ? (

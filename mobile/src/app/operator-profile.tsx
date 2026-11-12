@@ -152,7 +152,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
   const statusCopy = STATUS_COPY[p.verificationStatus];
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader
         title={p.verificationStatus === "not_submitted" ? "Complete profile" : "Your profile"}
         subtitle={p.verificationStatus === "not_submitted" ? "Step 2 of 2" : undefined}

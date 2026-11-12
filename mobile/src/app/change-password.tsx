@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { BackHeader, Button, PasswordField } from "../components/ui";
@@ -36,7 +36,7 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader title="Change password" subtitle="Use at least 8 characters" />
       <ScrollView className="flex-1 px-6" keyboardShouldPersistTaps="handled">
         {done ? (

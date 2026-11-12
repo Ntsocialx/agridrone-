@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, View, Pressable, ScrollView, Image, Modal, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -217,7 +217,7 @@ function BidSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView className="flex-1 justify-end bg-ink/50" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView className="flex-1 justify-end bg-ink/50" behavior="padding">
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Close bid sheet" />
         <View className="bg-paper rounded-t-lg px-6 pt-6" style={{ paddingBottom: insets.bottom + 16 }}>
           <Text className="text-ink text-2xl font-bold mb-1">Place a bid</Text>

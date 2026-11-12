@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView, Pressable } from "react-native";
 import { Text } from "../components/Text";
 import { router, useLocalSearchParams } from "expo-router";
 import { BackHeader, Button, Field, PasswordField } from "../components/ui";
@@ -61,7 +61,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-paper" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-paper" behavior="padding">
       <BackHeader
         title="Reset password"
         subtitle={step === "email" ? "We'll email you a 6-digit code" : `Step 2 of 2 · code sent to ${email.trim()}`}

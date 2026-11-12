@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -52,7 +52,7 @@ export default function PostJobScreen() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-page" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView className="flex-1 bg-page" behavior="padding">
       <StatusBar style="dark" />
       <HeroHeader eyebrow={`Hi ${user.fullName.split(" ")[0]},`} title="Post a job">
         <Text className="text-muted text-sm mt-1">Describe the work and verified operators will send you bids.</Text>
