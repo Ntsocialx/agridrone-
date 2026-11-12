@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { File } from "expo-file-system";
+import * as Network from "expo-network";
 import { Platform } from "react-native";
 
 // Override with EXPO_PUBLIC_API_URL (e.g. http://<laptop-ip>:3000/api/v1) for local dev.
@@ -168,12 +169,37 @@ async function trackSlow<T>(request: Promise<T>): Promise<T> {
   }
 }
 
+// Offline detection: the banner shows while offline, and requests are blocked with a clear
+// message instead of being sent (nothing is queued for later).
+const OFFLINE_MESSAGE = "You're offline. Connect to the internet and try again.";
+let offline = false;
+const offlineListeners = new Set<(offline: boolean) => void>();
+
+function updateNetwork(state: Network.NetworkState) {
+  // Unknown (undefined) counts as online, so a slow check never blocks the app.
+  const next = state.isConnected === false || state.isInternetReachable === false;
+  if (next === offline) return;
+  offline = next;
+  offlineListeners.forEach((l) => l(offline));
+}
+Network.getNetworkStateAsync().then(updateNetwork).catch(() => {});
+Network.addNetworkStateListener(updateNetwork);
+
+export function subscribeOffline(listener: (offline: boolean) => void) {
+  offlineListeners.add(listener);
+  listener(offline);
+  return () => {
+    offlineListeners.delete(listener);
+  };
+}
+
 /** Fire-and-forget ping so the free server starts waking while the user reads Welcome. */
 export function wakeServer() {
   fetch(API_URL + "/health").catch(() => {});
 }
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+  if (offline) throw new ApiError(OFFLINE_MESSAGE, 0);
   let response: Response;
   try {
     response = await trackSlow(fetch(API_URL + path, {
@@ -186,7 +212,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       body: options.body ? JSON.stringify(options.body) : undefined,
     }));
   } catch {
-    throw new ApiError("Can't reach AgricDrone Hub. Check your connection and try again.", 0);
+    throw new ApiError(offline ? OFFLINE_MESSAGE : "Can't reach AgricDrone Hub. Check your connection and try again.", 0);
   }
 
   if (response.status === 204) return undefined as T;
