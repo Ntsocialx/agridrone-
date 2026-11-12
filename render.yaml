@@ -20,7 +20,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: http://localhost:8081
+        value: http://localhost:8081,http://localhost:5173,https://admin-web-swart-nine.vercel.app
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
