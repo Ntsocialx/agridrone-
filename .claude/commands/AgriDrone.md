@@ -40,7 +40,9 @@ Farm owner posts job → approved pilot bids → owner selects a bid (job `assig
 - **Design** (2026-11-06): HelloChoice calculator look. Teal `#1dafa1` primary (`teal-ink #0e7c72` for text/links, `teal-light #7fe0d6` on photos), ink `#22262a`, muted `#66737f`, page `#fafafa`, white forms (`paper`), `field #f3f5f7`, `line #e0e6eb`, pink `#ec4899` (alerts/unread only), sun `#eab308` (on hold, stars), danger `#d64545`; 6px corners; Inter font (one family per weight; use the app `Text` from components/Text). White headers. On-screen name **AgricDrone Hub**. AgriSETA logo on welcome with two teal rings. Unsplash drone photos (IDs checked by eye).
 
 ## Android APK
-- App ID `com.ir4.agridrone`, version 1.0.0 (versionCode 1). Build with EAS from `mobile/`: `eas build -p android --profile preview` (account ntsocialx; first build 2026-11-09). Local Gradle builds fail on this school PC (Windows 260-char path limit, no admin), so use EAS.
+- App ID `com.ir4.agridrone`. Current release **2.0.0 (versionCode 2)**, built 2026-11-12 (EAS build 9ec475be-22e7-4840-bf2b-f9c9799ee975), saved as `Desktop/AgricDrone-Hub-v2.0.0.apk`; v1.0.0 (versionCode 1) was built 2026-11-09. Build with EAS from `mobile/`: `eas build -p android --profile preview` (account ntsocialx). Local Gradle builds fail on this school PC (Windows 260-char path limit, no admin), so use EAS.
+- Before building: `npx expo-doctor` (fix missing peer dependencies; e.g. expo-audio needs expo-asset). `npx expo install` fails here (npm allowScripts error), so add the version from `node_modules/expo/bundledNativeModules.json` to package.json and run `npm install`.
+- Check a downloaded APK with the Android SDK build-tools: `aapt dump badging` (package/version) and `apksigner verify --print-certs` (needs `JAVA_HOME` = Android Studio's `jbr`); the signer SHA-256 must be 37335d7c…bcfc60.
 - Signing key: `mobile/credentials/` (gitignored) + `mobile/credentials.json` for EAS; the same key must sign every update. Bump `android.versionCode` in app.json for each new APK.
 
 ## Status
