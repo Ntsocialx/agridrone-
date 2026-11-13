@@ -77,16 +77,40 @@ const JOB = {
 };
 const BID = { amountZar: 4200, days: 3, message: "Can fly early next week." };
 
-async function attachLicence(token: string) {
+type Document = "licence" | "roc" | "training_certificate";
+async function attachDocument(token: string, kind: Document) {
   await as(token).post("/api/v1/operators/me/licence/consent", { accept: true });
-  const signed = await as(token).post("/api/v1/operators/me/licence/upload-signature");
-  return as(token).post("/api/v1/operators/me/licence", { publicId: signed.body.fields.public_id });
+  const signed = await as(token).post(`/api/v1/operators/me/${kind}/upload-signature`);
+  return as(token).post(`/api/v1/operators/me/${kind}`, { publicId: signed.body.fields.public_id });
+}
+const attachLicence = (token: string) => attachDocument(token, "licence");
+
+/** A date `days` from today (UTC, like the test database's CURRENT_DATE). */
+const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+const PROFILE = {
+  base: "Test Town",
+  radiusKm: 50,
+  services: ["Mapping"],
+  province: "Western Cape",
+  rplNumber: "RPL-12345",
+  rplExpiresOn: inDays(365),
+  rocHolderName: "Test Drones (Pty) Ltd",
+  rocNumber: "ROC-678",
+  rocExpiresOn: inDays(300),
+  trainingProvider: "Test Flight School",
+  trainingProgramme: "RPL multirotor course",
+  trainingCompletedOn: inDays(-60),
+};
+
+/** Fills in every detail and document verification needs. */
+async function completeProfile(token: string) {
+  await as(token).put("/api/v1/operators/me", PROFILE);
+  for (const kind of ["licence", "roc", "training_certificate"] as const) await attachDocument(token, kind);
 }
 
 async function approvedOperator(adminToken: string) {
   const operator = await register("operator");
-  await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
-  await attachLicence(operator.token);
+  await completeProfile(operator.token);
   await as(operator.token).post("/api/v1/operators/me/submit");
   await as(adminToken).post(`/api/v1/admin/operators/${operator.id}/decision`, { decision: "approved" });
   return operator;
@@ -218,16 +242,25 @@ describe("editing your own account", () => {
 });
 
 describe("operator verification", () => {
-  it("blocks submit until the profile and licence are complete, then locks it in review", async () => {
+  it("blocks submit until the profile and documents are complete, then locks it in review", async () => {
     const operator = await register("operator");
     expect((await as(operator.token).post("/api/v1/operators/me/submit")).status).toBe(409);
 
+    // An older app version sends only the first three fields: saved, but not enough to submit.
     const put = await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
     expect(put.status).toBe(200);
-    expect((await as(operator.token).post("/api/v1/operators/me/submit")).status).toBe(409);
     expect((await attachLicence(operator.token)).status).toBe(201);
+    const early = await as(operator.token).post("/api/v1/operators/me/submit");
+    expect(early.status).toBe(409);
+    expect(early.body.error.message).toContain("ROC proof");
+    expect(early.body.error.message).toContain("training certificate");
+    expect(early.body.error.message).toContain("province");
+    expect(early.body.error.message).not.toContain("licence document");
+
+    await completeProfile(operator.token);
     expect((await as(operator.token).post("/api/v1/operators/me/submit")).body.verificationStatus).toBe("in_review");
-    expect((await as(operator.token).put("/api/v1/operators/me", { base: "Elsewhere", radiusKm: 10, services: ["Mapping"] })).status).toBe(409);
+    expect((await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, base: "Elsewhere" })).status).toBe(409);
+    expect((await attachDocument(operator.token, "roc")).status).toBe(409);
   });
 
   it("does not let operators offer restricted services", async () => {
@@ -239,8 +272,7 @@ describe("operator verification", () => {
   it("requires a reason to reject, and only admins can decide", async () => {
     const admin = await createAdmin();
     const operator = await register("operator");
-    await as(operator.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
-    await attachLicence(operator.token);
+    await completeProfile(operator.token);
     await as(operator.token).post("/api/v1/operators/me/submit");
 
     expect((await as(operator.token).post(`/api/v1/admin/operators/${operator.id}/decision`, { decision: "approved" })).status).toBe(403);
@@ -564,8 +596,7 @@ describe("notifications", () => {
     expect((await as(operator.token).get("/api/v1/notifications")).body[0].title).toBe("You've been selected");
 
     const rejected = await register("operator");
-    await as(rejected.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
-    await attachLicence(rejected.token);
+    await completeProfile(rejected.token);
     await as(rejected.token).post("/api/v1/operators/me/submit");
     await as(admin).post(`/api/v1/admin/operators/${rejected.id}/decision`, { decision: "rejected", reason: "Licence photo is blurry" });
     const notes = (await as(rejected.token).get("/api/v1/notifications")).body;
@@ -635,5 +666,143 @@ describe("job violation reports", () => {
     expect((await as(admin).post(`/api/v1/admin/users/${owner.id}/unsuspend`)).status).toBe(204);
     expect((await request(app).post("/api/v1/auth/login").send({ email: ownerEmail, password: "password123" })).status).toBe(200);
     expect(((await as(reporter.token).get("/api/v1/jobs")).body as { id: string }[]).some((j) => j.id === job.body.id)).toBe(true);
+  });
+});
+
+describe("credentials, expiry and training (stage 5)", () => {
+  const status = async (token: string) => (await as(token).get("/api/v1/operators/me")).body;
+  const titles = async (token: string) => ((await as(token).get("/api/v1/notifications")).body as { title: string }[]).map((n) => n.title);
+
+  it("refuses expiry dates that have passed and training dates in the future", async () => {
+    const operator = await register("operator");
+    await completeProfile(operator.token);
+    await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, rocExpiresOn: inDays(-1), trainingCompletedOn: inDays(5) });
+    const submit = await as(operator.token).post("/api/v1/operators/me/submit");
+    expect(submit.status).toBe(409);
+    expect(submit.body.error.message).toContain("an ROC expiry date in the future");
+    expect(submit.body.error.message).toContain("training completion date");
+    expect((await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, province: "Atlantis" })).status).toBe(400);
+  });
+
+  it("keeps ROC proof and training certificates private: consent first, admin-only links, audited", async () => {
+    const admin = await createAdmin();
+    const operator = await register("operator");
+    // A consent to the previous notice version doesn't count.
+    await db.query("INSERT INTO consents (user_id, kind, version) VALUES ($1, 'licence_upload', '2026-11-03')", [operator.id]);
+    expect((await as(operator.token).post("/api/v1/operators/me/roc/upload-signature")).status).toBe(403);
+
+    expect((await attachDocument(operator.token, "roc")).status).toBe(201);
+    expect((await attachDocument(operator.token, "training_certificate")).status).toBe(201);
+    expect(await status(operator.token)).toMatchObject({ rocAttached: true, trainingCertificateAttached: true, licenceAttached: false });
+    const { rows } = await db.query("SELECT 1 FROM uploads WHERE user_id = $1 AND kind IN ('roc', 'training_certificate') AND url IS NULL", [operator.id]);
+    expect(rows).toHaveLength(2);
+
+    expect((await as(operator.token).get(`/api/v1/admin/operators/${operator.id}/documents/roc`)).status).toBe(403);
+    for (const kind of ["roc", "training_certificate"]) {
+      const link = await as(admin).get(`/api/v1/admin/operators/${operator.id}/documents/${kind}`);
+      expect(link.status).toBe(200);
+      expect(link.headers["cache-control"]).toBe("no-store");
+      const audit = await db.query("SELECT 1 FROM audit_log WHERE target_id = $1 AND action = $2", [operator.id, `${kind}_viewed`]);
+      expect(audit.rows).toHaveLength(1);
+    }
+    expect((await as(admin).get(`/api/v1/admin/operators/${operator.id}/documents/passport`)).status).toBe(400);
+  });
+
+  it("sets eligibility to the earlier expiry on approval, and won't approve expired documents", async () => {
+    const admin = await createAdmin();
+    const pilot = await approvedOperator(admin);
+    expect(await status(pilot.token)).toMatchObject({ verificationStatus: "approved", canBid: true, eligibleUntil: PROFILE.rocExpiresOn });
+
+    const late = await register("operator");
+    await completeProfile(late.token);
+    await as(late.token).post("/api/v1/operators/me/submit");
+    await db.query("UPDATE operator_profiles SET rpl_expires_on = CURRENT_DATE - 1 WHERE user_id = $1", [late.id]);
+    expect((await as(admin).post(`/api/v1/admin/operators/${late.id}/decision`, { decision: "approved" })).status).toBe(409);
+    expect((await as(admin).post(`/api/v1/admin/operators/${late.id}/decision`, { decision: "rejected", reason: "Licence has expired." })).status).toBe(200);
+  });
+
+  it("stops pilots with expired credentials from bidding or being selected", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await approvedOperator(admin);
+    const first = await as(owner.token).post("/api/v1/jobs", JOB);
+    const bid = await as(pilot.token).post(`/api/v1/jobs/${first.body.id}/bids`, BID);
+    expect(bid.status).toBe(201);
+
+    await db.query("UPDATE operator_profiles SET eligible_until = CURRENT_DATE - 1 WHERE user_id = $1", [pilot.id]);
+    expect((await status(pilot.token)).canBid).toBe(false);
+    const second = await as(owner.token).post("/api/v1/jobs", JOB);
+    const refused = await as(pilot.token).post(`/api/v1/jobs/${second.body.id}/bids`, BID);
+    expect(refused.status).toBe(403);
+    expect(refused.body.error.message).toContain("expired");
+    expect((await as(owner.token).post(`/api/v1/jobs/${first.body.id}/select`, { bidId: bid.body.id })).status).toBe(409);
+  });
+
+  it("lets an approved pilot update their details and keep bidding until re-approved", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await approvedOperator(admin);
+    expect((await as(pilot.token).put("/api/v1/operators/me", PROFILE)).status).toBe(409);
+
+    const updating = await as(pilot.token).post("/api/v1/operators/me/update");
+    expect(updating.body).toMatchObject({ verificationStatus: "updating", canBid: true });
+    expect((await attachDocument(pilot.token, "roc")).status).toBe(201);
+    const renewed = inDays(200);
+    expect((await as(pilot.token).put("/api/v1/operators/me", { ...PROFILE, rocExpiresOn: renewed })).status).toBe(200);
+    expect((await as(pilot.token).post("/api/v1/operators/me/submit")).body.verificationStatus).toBe("in_review");
+
+    // Still eligible on the previously verified dates while the admin reviews.
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    expect((await as(pilot.token).post(`/api/v1/jobs/${job.body.id}/bids`, BID)).status).toBe(201);
+    const approved = await as(admin).post(`/api/v1/admin/operators/${pilot.id}/decision`, { decision: "approved" });
+    expect(approved.body).toMatchObject({ verificationStatus: "approved", eligibleUntil: renewed });
+  });
+
+  it("sends each expiry reminder once", async () => {
+    const admin = await createAdmin();
+    const pilot = await approvedOperator(admin);
+    await db.query("UPDATE operator_profiles SET rpl_expires_on = CURRENT_DATE + 5, eligible_until = CURRENT_DATE + 5 WHERE user_id = $1", [pilot.id]);
+    await status(pilot.token);
+    await status(pilot.token);
+    await as(pilot.token).get("/api/v1/jobs");
+    expect((await titles(pilot.token)).filter((t) => t === "Licence expiring soon")).toHaveLength(1);
+
+    await db.query("UPDATE operator_profiles SET rpl_expires_on = CURRENT_DATE - 1, eligible_until = CURRENT_DATE - 1 WHERE user_id = $1", [pilot.id]);
+    await as(pilot.token).get("/api/v1/jobs");
+    await as(pilot.token).get("/api/v1/jobs");
+    expect((await titles(pilot.token)).filter((t) => t === "Licence expired")).toHaveLength(1);
+  });
+
+  it("gives pilots approved before the new rules a deadline, then blocks them", async () => {
+    const owner = await register("farm_owner");
+    const pilot = await register("operator");
+    // What migration 007 does for pilots who were already approved.
+    await db.query(
+      "UPDATE operator_profiles SET base = 'Old Town', services = '{Mapping}', verification_status = 'approved', eligible_until = CURRENT_DATE + 30 WHERE user_id = $1",
+      [pilot.id],
+    );
+    const job = await as(owner.token).post("/api/v1/jobs", JOB);
+    expect((await as(pilot.token).post(`/api/v1/jobs/${job.body.id}/bids`, BID)).status).toBe(201);
+    await status(pilot.token);
+    expect(await titles(pilot.token)).toContain("Update your pilot details");
+
+    await db.query("UPDATE operator_profiles SET eligible_until = CURRENT_DATE - 1 WHERE user_id = $1", [pilot.id]);
+    const next = await as(owner.token).post("/api/v1/jobs", JOB);
+    expect((await as(pilot.token).post(`/api/v1/jobs/${next.body.id}/bids`, BID)).status).toBe(403);
+    await status(pilot.token);
+    expect(await titles(pilot.token)).toContain("Pilot details overdue");
+  });
+
+  it("lists expiring pilots for admins and stores the job's province", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await approvedOperator(admin);
+    await db.query("UPDATE operator_profiles SET eligible_until = CURRENT_DATE + 10 WHERE user_id = $1", [pilot.id]);
+    const expiring = (await as(admin).get("/api/v1/admin/operators?status=expiring")).body as { id: string }[];
+    expect(expiring.map((p) => p.id)).toContain(pilot.id);
+
+    expect((await as(owner.token).post("/api/v1/jobs", { ...JOB, province: "Free State" })).body.province).toBe("Free State");
+    expect((await as(owner.token).post("/api/v1/jobs", JOB)).body.province).toBeNull();
+    expect((await as(owner.token).post("/api/v1/jobs", { ...JOB, province: "Nowhere" })).status).toBe(400);
   });
 });

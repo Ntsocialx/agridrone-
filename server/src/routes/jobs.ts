@@ -3,6 +3,7 @@ import { z } from "zod";
 import { currentUser, requireRole, type AuthUser } from "../auth";
 import type { Db, Queryable } from "../db";
 import { conflict, forbidden, idParam, notFound, parse } from "../http";
+import { isEligible, PROVINCES, sendExpiryReminders } from "../credentials";
 import { notify, quote } from "../notify";
 
 export const SERVICES = ["Mapping", "Monitoring", "Surveying", "Spraying"] as const;
@@ -14,7 +15,7 @@ export const BIDDABLE_SERVICES = ["Mapping", "Monitoring", "Surveying"] as const
 const JOB_FIELDS = `
   j.id, j.title, j.service, j.location, j.area_ha::float8 AS "areaHa",
   to_char(j.preferred_date, 'YYYY-MM-DD') AS "preferredDate", j.budget_zar AS "budgetZar",
-  j.brief, j.status, j.owner_id AS "ownerId", o.full_name AS "postedBy",
+  j.brief, j.status, j.province, j.owner_id AS "ownerId", o.full_name AS "postedBy",
   j.assigned_operator_id AS "assignedOperatorId", a.full_name AS "assignedOperatorName",
   j.created_at AS "createdAt", j.completed_at AS "completedAt", j.removed_reason AS "removedReason",
   (SELECT count(*)::int FROM bids b WHERE b.job_id = j.id) AS "bidCount",
@@ -31,6 +32,8 @@ const jobSchema = z.object({
   preferredDate: z.iso.date(),
   budgetZar: z.number().int().positive().max(10_000_000),
   brief: z.string().trim().min(10).max(2000),
+  // Optional so older app versions (before v3) can still post; the app asks for it.
+  province: z.enum(PROVINCES).optional(),
 });
 
 const bidSchema = z.object({
@@ -67,6 +70,9 @@ export function jobsRouter(db: Db) {
   // Marketplace: everything still taking (or held from) bids.
   router.get("/", async (request, response) => {
     const { service, q } = parse(listSchema, request.query);
+    const viewer = currentUser(request);
+    // Pilots open the marketplace often, so expiry reminders are checked here too.
+    if (viewer.role === "operator") await sendExpiryReminders(db, viewer.id);
     const { rows } = await db.query(
       `SELECT ${JOB_FIELDS} ${JOB_FROM}
        WHERE j.status IN ('open', 'on_hold') AND o.suspended_at IS NULL
@@ -92,9 +98,9 @@ export function jobsRouter(db: Db) {
     const input = parse(jobSchema, request.body);
     const status = RESTRICTED_SERVICES.includes(input.service) ? "on_hold" : "open";
     const { rows } = await db.query<{ id: string }>(
-      `INSERT INTO jobs (owner_id, title, service, location, area_ha, preferred_date, budget_zar, brief, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [currentUser(request).id, input.title, input.service, input.location, input.areaHa, input.preferredDate, input.budgetZar, input.brief, status],
+      `INSERT INTO jobs (owner_id, title, service, location, area_ha, preferred_date, budget_zar, brief, status, province)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [currentUser(request).id, input.title, input.service, input.location, input.areaHa, input.preferredDate, input.budgetZar, input.brief, status, input.province ?? null],
     );
     response.status(201).json(await loadJob(db, rows[0].id));
   });
@@ -125,11 +131,17 @@ export function jobsRouter(db: Db) {
 
     if (job.status === "on_hold") throw forbidden("This job is on compliance hold and is not accepting bids.");
     if (job.status !== "open" || (await ownerSuspended(db, job.ownerId))) throw conflict("This job is no longer accepting bids.");
-    const { rows: profile } = await db.query<{ status: string }>(
-      "SELECT verification_status AS status FROM operator_profiles WHERE user_id = $1",
-      [user.id],
-    );
-    if (profile[0]?.status !== "approved") throw forbidden("Your verification must be approved before you can bid.");
+    if (!(await isEligible(db, user.id))) {
+      const { rows: profile } = await db.query<{ verified: boolean }>(
+        "SELECT eligible_until IS NOT NULL AS verified FROM operator_profiles WHERE user_id = $1",
+        [user.id],
+      );
+      throw forbidden(
+        profile[0]?.verified
+          ? "Your licence or ROC has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them."
+          : "Your verification must be approved before you can bid.",
+      );
+    }
 
     const { rows } = await db.query(
       `INSERT INTO bids (job_id, operator_id, amount_zar, days, message) VALUES ($1, $2, $3, $4, $5)
@@ -153,6 +165,10 @@ export function jobsRouter(db: Db) {
         [bidId, jobId],
       );
       if (!bid[0]) throw notFound("Bid");
+      // A pilot whose licence or ROC lapsed after bidding can't be chosen.
+      if (!(await isEligible(tx, bid[0].operatorId))) {
+        throw conflict("This pilot's licence or ROC isn't current, so they can't be selected right now. Choose another bid or try again later.");
+      }
 
       // The status guard makes a second, concurrent selection a no-op.
       const { rows: job } = await tx.query<{ title: string }>(
