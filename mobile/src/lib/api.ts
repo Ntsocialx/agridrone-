@@ -11,7 +11,14 @@ export const ADMIN_WEBSITE_URL = "https://admin-web-swart-nine.vercel.app";
 export type Role = "operator" | "farm_owner" | "admin";
 export type User = { id: string; role: Role; fullName: string };
 export type Me = User & { email: string; phone: string; avatarUrl: string | null };
-export type Service = "Mapping" | "Monitoring" | "Surveying" | "Spraying";
+export type Service =
+  | "Crop surveying"
+  | "Mapping"
+  | "Crop monitoring"
+  | "Livestock monitoring"
+  | "Multispectral imaging"
+  | "Infrastructure inspection"
+  | "Spraying";
 export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected" | "updating";
 
 /** South Africa's nine provinces (same list as the server). */
@@ -29,7 +36,15 @@ export const PROVINCES = [
 export type Province = (typeof PROVINCES)[number];
 export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled" | "removed";
 
-export const SERVICES: Service[] = ["Mapping", "Monitoring", "Surveying", "Spraying"];
+export const SERVICES: Service[] = [
+  "Crop surveying",
+  "Mapping",
+  "Crop monitoring",
+  "Livestock monitoring",
+  "Multispectral imaging",
+  "Infrastructure inspection",
+  "Spraying",
+];
 // Mirrors the server: restricted services are held, never biddable.
 export const isRestricted = (service: Service) => service === "Spraying";
 
@@ -308,10 +323,16 @@ export const formatDate = (iso: string) =>
 
 // Drone photos from Unsplash (Unsplash License), one per service.
 const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
+const MAPPING = unsplash("photo-1473968512647-3e447244af8f");
+const MONITORING = unsplash("photo-1527977966376-1c8408f9f108");
+const SURVEYING = unsplash("photo-1508444845599-5c89863b1c44");
 const IMAGES: Record<Service, string> = {
-  Mapping: unsplash("photo-1473968512647-3e447244af8f"),
-  Monitoring: unsplash("photo-1527977966376-1c8408f9f108"),
-  Surveying: unsplash("photo-1508444845599-5c89863b1c44"),
+  "Crop surveying": SURVEYING,
+  Mapping: MAPPING,
+  "Crop monitoring": MONITORING,
+  "Livestock monitoring": MONITORING,
+  "Multispectral imaging": MAPPING,
+  "Infrastructure inspection": SURVEYING,
   Spraying: unsplash("photo-1657093114835-031e7cf9520c"),
 };
 /** Jobs have no photos yet, so each service gets a representative aerial image. */

@@ -1,6 +1,6 @@
 # Stage 5 Plan — From training to earning (compliance, services, training records, impact report)
 
-**Status:** Approved 13 November 2026 ("yes"). Phase 1 built on `dev` (13 Nov): server + 48 tests, app, admin site, legal drafts. Not live until migration 007 is run on Neon and `dev` is merged. Phases 2–4 not started.
+**Status:** Approved 13 November 2026 ("yes"). Phase 1 built on `dev` (13 Nov): server, app, admin site, legal drafts. Phase 2 (service list, migration 008) built on `dev` (13 Nov); 53 server tests pass. Not live until migrations 007 and 008 are run on Neon and `dev` is merged, together with APK v3. Phases 3–4 not started.
 **Source:** Concept brief §5.15 "AgriDrone Hub — from training to earning" (AgriSETA 4IR skills priorities), and the decisions below.
 **Depends on:** Stage 4 system (live API on Render, Neon migrations 001–006, mobile app v2.0.0, admin website on Vercel).
 
@@ -80,6 +80,8 @@ outcome through AgriImpact. The marketplace already works; what's missing is (1)
 - App and admin site show the new services; each needs a photo (see *Open items*).
 
 **Check:** post a "Livestock monitoring" job; a pilot offering it can bid; an old-name request from v2 still works.
+
+**Built (13 Nov):** `server/migrations/008_services.sql` (renames jobs and pilot services, new CHECK); the server maps "Surveying"/"Monitoring" to the new names on job posts, the job filter and the pilot profile; app chips and photos updated (new services reuse the existing photos). Tests cover the new service, the old names and the migration itself. **Known v2 limit:** a v2 phone shows no photo on jobs with the new service names, and its profile chips don't highlight renamed services (saving still works). Fixed by APK v3.
 
 ### Phase 3 — Impact report (admin website)
 

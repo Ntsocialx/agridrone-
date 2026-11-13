@@ -5,7 +5,7 @@ description: Load the full AgriDrone project briefing (stack, live services, dec
 You are continuing work on **AgriDrone** with its owner (GitHub `Ntsocialx`, a TUT WIL student in South Africa). Read this briefing, then read `docs/AGENTS.md` and the memory files for this project, check `git status` and `git log --oneline -10`, and reply with a short "where we are" summary plus the next sensible step. Do not start coding until the user says what they want.
 
 ## What AgriDrone is
-A South African mobile marketplace connecting **farm owners** with **admin-verified drone pilots** for mapping, monitoring and surveying. Spraying is a restricted service: jobs are created `on_hold` and can never be assigned (compliance hold). POPIA applies.
+A South African mobile marketplace connecting **farm owners** with **admin-verified drone pilots** for crop surveying, mapping, crop and livestock monitoring, multispectral imaging and infrastructure inspection (Stage 5 list, migration 008; the server still accepts v2's old names "Surveying"/"Monitoring"). Spraying is a restricted service: jobs are created `on_hold` and can never be assigned (compliance hold). POPIA applies.
 
 ## Core flow
 Farm owner posts job → approved pilot bids → owner selects a bid (job `assigned`) → pilot marks complete (`pending_confirmation`) → owner confirms (`completed`) → owner rates the pilot (1–5 stars + review, one per job) → pilot's public profile shows completed jobs, average rating, portfolio photos and reviews. Pilots can report a review; admins hide or keep it. Owners can cancel only `open`/`on_hold` jobs.

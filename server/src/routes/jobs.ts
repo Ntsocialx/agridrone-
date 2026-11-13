@@ -6,11 +6,23 @@ import { conflict, forbidden, idParam, notFound, parse } from "../http";
 import { isEligible, PROVINCES, sendExpiryReminders } from "../credentials";
 import { notify, quote } from "../notify";
 
-export const SERVICES = ["Mapping", "Monitoring", "Surveying", "Spraying"] as const;
+export const BIDDABLE_SERVICES = [
+  "Crop surveying",
+  "Mapping",
+  "Crop monitoring",
+  "Livestock monitoring",
+  "Multispectral imaging",
+  "Infrastructure inspection",
+] as const;
 // Restricted/high-risk services stay on compliance hold: visible, never biddable
 // or assignable until an approved policy and evidence review exist (docs/AGENTS.md).
 export const RESTRICTED_SERVICES: readonly string[] = ["Spraying"];
-export const BIDDABLE_SERVICES = ["Mapping", "Monitoring", "Surveying"] as const;
+export const SERVICES = [...BIDDABLE_SERVICES, "Spraying"] as const;
+
+// App v2 still sends the names used before migration 008.
+const LEGACY_SERVICES: Record<string, string> = { Surveying: "Crop surveying", Monitoring: "Crop monitoring" };
+export const service = <T extends readonly [string, ...string[]]>(names: T) =>
+  z.preprocess((value) => (typeof value === "string" && value in LEGACY_SERVICES ? LEGACY_SERVICES[value] : value), z.enum(names));
 
 const JOB_FIELDS = `
   j.id, j.title, j.service, j.location, j.area_ha::float8 AS "areaHa",
@@ -26,7 +38,7 @@ type JobRow = { id: string; title: string; status: string; ownerId: string; post
 
 const jobSchema = z.object({
   title: z.string().trim().min(4).max(120),
-  service: z.enum(SERVICES),
+  service: service(SERVICES),
   location: z.string().trim().min(2).max(120),
   areaHa: z.number().positive().max(100_000),
   preferredDate: z.iso.date(),
@@ -43,7 +55,7 @@ const bidSchema = z.object({
 });
 
 const listSchema = z.object({
-  service: z.enum(SERVICES).optional(),
+  service: service(SERVICES).optional(),
   q: z.string().trim().max(100).optional(),
 });
 

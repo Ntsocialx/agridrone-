@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app";
@@ -361,9 +363,9 @@ describe("job flow", () => {
     const operator = await register("operator");
     expect((await as(operator.token).post("/api/v1/jobs", JOB)).status).toBe(403);
 
-    await as(owner.token).post("/api/v1/jobs", { ...JOB, title: "Unique citrus survey", service: "Surveying" });
-    const found = await as(operator.token).get("/api/v1/jobs?service=Surveying&q=citrus");
-    expect(found.body.every((j: { service: string }) => j.service === "Surveying")).toBe(true);
+    await as(owner.token).post("/api/v1/jobs", { ...JOB, title: "Unique citrus survey", service: "Crop surveying" });
+    const found = await as(operator.token).get("/api/v1/jobs?service=Crop%20surveying&q=citrus");
+    expect(found.body.every((j: { service: string }) => j.service === "Crop surveying")).toBe(true);
     expect(found.body.some((j: { title: string }) => j.title === "Unique citrus survey")).toBe(true);
   });
 });
@@ -852,5 +854,67 @@ describe("credentials, expiry and training (stage 5)", () => {
     expect((await as(owner.token).post("/api/v1/jobs", { ...JOB, province: "Free State" })).body.province).toBe("Free State");
     expect((await as(owner.token).post("/api/v1/jobs", JOB)).body.province).toBeNull();
     expect((await as(owner.token).post("/api/v1/jobs", { ...JOB, province: "Nowhere" })).status).toBe(400);
+  });
+});
+
+describe("service list (stage 5)", () => {
+  async function pilotOffering(adminToken: string, services: string[]) {
+    const pilot = await register("operator");
+    const profile = await as(pilot.token).put("/api/v1/operators/me", { ...PROFILE, services });
+    for (const kind of DOCUMENTS) await attachDocument(pilot.token, kind);
+    await as(pilot.token).post("/api/v1/operators/me/submit");
+    await as(adminToken).post(`/api/v1/admin/operators/${pilot.id}/decision`, { decision: "approved" });
+    return { ...pilot, profile };
+  }
+
+  it("offers the new services: a Livestock monitoring job gets a bid from a pilot offering it", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await pilotOffering(admin, ["Livestock monitoring", "Infrastructure inspection"]);
+    const { profile } = pilot;
+    expect(profile.status).toBe(200);
+    expect(profile.body.services).toEqual(["Livestock monitoring", "Infrastructure inspection"]);
+
+    const job = await as(owner.token).post("/api/v1/jobs", { ...JOB, service: "Livestock monitoring" });
+    expect(job.body.status).toBe("open");
+    expect((await as(pilot.token).post(`/api/v1/jobs/${job.body.id}/bids`, BID)).status).toBe(201);
+    expect((await as(owner.token).post("/api/v1/jobs", { ...JOB, service: "Crop dusting" })).status).toBe(400);
+  });
+
+  it("still accepts the old names from app v2 and stores the new ones", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await pilotOffering(admin, ["Surveying", "Monitoring", "Crop surveying"]);
+    const { profile } = pilot;
+    expect(profile.body.services).toEqual(["Crop surveying", "Crop monitoring"]);
+
+    const job = await as(owner.token).post("/api/v1/jobs", { ...JOB, title: "Legacy name survey", service: "Surveying" });
+    expect(job.body.service).toBe("Crop surveying");
+    const found = (await as(pilot.token).get("/api/v1/jobs?service=Surveying&q=Legacy")).body as { service: string }[];
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.every((j) => j.service === "Crop surveying")).toBe(true);
+  });
+
+  it("migration 008 renames existing jobs and pilot services", async () => {
+    const owner = await register("farm_owner");
+    const pilot = await register("operator");
+    await as(pilot.token).put("/api/v1/operators/me", { base: "Test Town", radiusKm: 50, services: ["Mapping"] });
+    // Put the database back to the pre-008 rules and data, then run the migration file.
+    await db.exec(`ALTER TABLE jobs DROP CONSTRAINT jobs_service_check;
+      ALTER TABLE jobs ADD CONSTRAINT jobs_service_check CHECK (service IN ('Mapping', 'Monitoring', 'Surveying', 'Spraying')) NOT VALID`);
+    const old = await db.query<{ id: string }>(
+      `INSERT INTO jobs (owner_id, title, service, location, area_ha, preferred_date, budget_zar, brief, status)
+       VALUES ($1, 'Old monitoring job', 'Monitoring', 'Farm', 10, '2026-12-01', 1000, 'An older job brief.', 'open') RETURNING id`,
+      [owner.id],
+    );
+    await db.query("UPDATE operator_profiles SET services = ARRAY['Surveying', 'Mapping', 'Monitoring'] WHERE user_id = $1", [pilot.id]);
+
+    await db.exec(readFileSync(path.resolve(__dirname, "../migrations/008_services.sql"), "utf8"));
+
+    const job = await db.query<{ service: string }>("SELECT service FROM jobs WHERE id = $1", [old.rows[0].id]);
+    expect(job.rows[0].service).toBe("Crop monitoring");
+    const p = await db.query<{ services: string[] }>("SELECT services FROM operator_profiles WHERE user_id = $1", [pilot.id]);
+    expect(p.rows[0].services).toEqual(["Crop surveying", "Mapping", "Crop monitoring"]);
+    await expect(db.query("UPDATE jobs SET service = 'Surveying' WHERE id = $1", [old.rows[0].id])).rejects.toThrow();
   });
 });

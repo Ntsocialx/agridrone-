@@ -5,7 +5,7 @@ import { ELIGIBLE_SQL, PROVINCES, sendExpiryReminders } from "../credentials";
 import type { Db } from "../db";
 import { HttpError, conflict, idParam, notFound, parse } from "../http";
 import { notify } from "../notify";
-import { BIDDABLE_SERVICES } from "./jobs";
+import { BIDDABLE_SERVICES, service } from "./jobs";
 
 const date = (column: string) => `to_char(${column}, 'YYYY-MM-DD')`;
 const attached = (kind: string) => `EXISTS (SELECT 1 FROM uploads u WHERE u.user_id = p.user_id AND u.kind = '${kind}')`;
@@ -33,7 +33,7 @@ const profileSchema = z.object({
   base: z.string().trim().min(2).max(100),
   radiusKm: z.number().int().min(1).max(500),
   // Restricted services can't be offered until a compliance policy exists.
-  services: z.array(z.enum(BIDDABLE_SERVICES)).min(1).max(BIDDABLE_SERVICES.length),
+  services: z.array(service(BIDDABLE_SERVICES)).min(1).max(BIDDABLE_SERVICES.length),
   province: optional(z.enum(PROVINCES)),
   rplNumber: optional(z.string().trim().min(3).max(40)),
   rplExpiresOn: optional(isoDate),
