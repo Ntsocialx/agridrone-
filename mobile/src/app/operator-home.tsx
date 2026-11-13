@@ -7,12 +7,12 @@ import { JobCard } from "../components/JobCard";
 import { BottomNav, Chip, EmptyState, ErrorState, HeroHeader, Loading } from "../components/ui";
 import { SERVICES, type Job, type OperatorProfile, type Service } from "../lib/api";
 import { useApi, useUser } from "../lib/session";
+import { pilotStanding } from "../lib/standing";
 
-const STATUS = {
-  not_submitted: { pill: "Not verified", title: "Finish your profile", body: "Upload your licence to start bidding on jobs." },
-  in_review: { pill: "In review", title: "Almost ready to fly", body: "The admin team is reviewing your licence." },
-  approved: { pill: "Verified", title: "Ready to fly?", body: "Browse open jobs near you and place a bid." },
-  rejected: { pill: "Changes needed", title: "Update your profile", body: "Your verification needs changes before you can bid." },
+const TONE = {
+  ok: "bg-teal-soft border-teal/30",
+  warn: "bg-sun/15 border-sun/40",
+  danger: "bg-danger/10 border-danger/30",
 };
 
 export default function OperatorHomeScreen() {
@@ -31,20 +31,20 @@ export default function OperatorHomeScreen() {
   const search = [service && `service=${service}`, debounced && `q=${encodeURIComponent(debounced)}`].filter(Boolean).join("&");
   const jobs = useApi<Job[]>(`/jobs${search ? `?${search}` : ""}`);
   const profile = useApi<OperatorProfile>("/operators/me");
-  const status = STATUS[profile.data?.verificationStatus ?? "not_submitted"];
+  const status = pilotStanding(profile.data);
 
   return (
     <View className="flex-1 bg-page">
       <StatusBar style="dark" />
       <HeroHeader eyebrow="Welcome back," title={user.fullName.split(" ")[0]}>
-        <View className="bg-teal-soft p-4 rounded-md border border-teal/30 mt-5 flex-row items-center">
+        <View className={`p-4 rounded-md border mt-5 flex-row items-center ${TONE[status.tone]}`}>
           <View className="flex-1 mr-3">
             <Text className="text-ink font-bold text-lg mb-1">{status.title}</Text>
             <Text className="text-muted text-sm">{status.body}</Text>
           </View>
           <Text
             onPress={() => router.push("/operator-profile")}
-            className="bg-teal-soft text-ink text-xs font-bold px-3 py-1 rounded-full overflow-hidden"
+            className="bg-paper text-ink text-xs font-bold px-3 py-1 rounded-full overflow-hidden"
           >
             {status.pill}
           </Text>

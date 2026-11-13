@@ -3,14 +3,16 @@ import { View, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { ProvincePicker } from "../components/ProvincePicker";
 import { BottomNav, Button, Chip, Field, HeroHeader } from "../components/ui";
-import { ApiError, SERVICES, api, isRestricted, type Job, type Service } from "../lib/api";
+import { ApiError, SERVICES, api, isRestricted, type Job, type Province, type Service } from "../lib/api";
 import { celebrate, oops } from "../lib/feedback";
 import { useUser } from "../lib/session";
 
 export default function PostJobScreen() {
   const user = useUser();
   const [service, setService] = useState<Service>("Mapping");
+  const [province, setProvince] = useState<Province | null>(null);
   const [form, setForm] = useState({ title: "", location: "", area: "", date: "", budget: "", brief: "" });
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -20,6 +22,7 @@ export default function PostJobScreen() {
   const errors = {
     title: form.title.trim().length >= 4 ? undefined : "Give the job a short title",
     location: form.location.trim().length >= 2 ? undefined : "Enter the farm location",
+    province: province ? undefined : "Choose the province",
     area: Number(form.area) > 0 ? undefined : "Enter the area in hectares",
     date: /^\d{4}-\d{2}-\d{2}$/.test(form.date.trim()) ? undefined : "Use YYYY-MM-DD",
     budget: Number(form.budget) > 0 && Number.isInteger(Number(form.budget)) ? undefined : "Enter a budget in whole rand",
@@ -42,6 +45,7 @@ export default function PostJobScreen() {
           preferredDate: form.date.trim(),
           budgetZar: Number(form.budget),
           brief: form.brief.trim(),
+          province,
         },
       });
       celebrate("Job posted");
@@ -79,7 +83,8 @@ export default function PostJobScreen() {
 
         <View className="gap-y-5 mt-4 mb-6">
           <Field label="Job title" placeholder="e.g. Citrus orchard mapping" value={form.title} onChangeText={set("title")} error={show("title")} />
-          <Field label="Farm location" placeholder="Farm name, Province" value={form.location} onChangeText={set("location")} error={show("location")} />
+          <Field label="Farm location" placeholder="Farm name and nearest town" value={form.location} onChangeText={set("location")} error={show("location")} />
+          <ProvincePicker label="Province" value={province} onChange={setProvince} error={show("province")} />
           <View className="flex-row gap-3">
             <View className="flex-1"><Field label="Area (ha)" placeholder="50" value={form.area} onChangeText={set("area")} keyboardType="decimal-pad" error={show("area")} /></View>
             <View className="flex-1"><Field label="Preferred date" placeholder="2026-12-01" value={form.date} onChangeText={set("date")} error={show("date")} /></View>

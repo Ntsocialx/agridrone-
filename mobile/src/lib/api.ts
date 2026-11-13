@@ -12,7 +12,21 @@ export type Role = "operator" | "farm_owner" | "admin";
 export type User = { id: string; role: Role; fullName: string };
 export type Me = User & { email: string; phone: string; avatarUrl: string | null };
 export type Service = "Mapping" | "Monitoring" | "Surveying" | "Spraying";
-export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected";
+export type VerificationStatus = "not_submitted" | "in_review" | "approved" | "rejected" | "updating";
+
+/** South Africa's nine provinces (same list as the server). */
+export const PROVINCES = [
+  "Eastern Cape",
+  "Free State",
+  "Gauteng",
+  "KwaZulu-Natal",
+  "Limpopo",
+  "Mpumalanga",
+  "North West",
+  "Northern Cape",
+  "Western Cape",
+] as const;
+export type Province = (typeof PROVINCES)[number];
 export type JobStatus = "open" | "on_hold" | "assigned" | "pending_confirmation" | "completed" | "cancelled" | "removed";
 
 export const SERVICES: Service[] = ["Mapping", "Monitoring", "Surveying", "Spraying"];
@@ -38,6 +52,8 @@ export type Job = {
   bidCount: number;
   reviewed: boolean;
   removedReason: string | null;
+  /** Null for jobs posted before provinces were recorded. */
+  province: Province | null;
 };
 
 export type NotificationKind = "announcement" | "update" | "job" | "verification" | "review" | "report";
@@ -65,9 +81,23 @@ export type OperatorProfile = {
   base: string;
   radiusKm: number;
   services: Service[];
+  province: Province | null;
   verificationStatus: VerificationStatus;
   rejectionReason: string | null;
+  rplNumber: string | null;
+  rplExpiresOn: string | null;
+  rocHolderName: string | null;
+  rocNumber: string | null;
+  rocExpiresOn: string | null;
+  trainingProvider: string | null;
+  trainingProgramme: string | null;
+  trainingCompletedOn: string | null;
+  /** Last day the pilot may bid, from the admin-verified expiry dates (or an update deadline). */
+  eligibleUntil: string | null;
+  canBid: boolean;
   licenceAttached: boolean;
+  rocAttached: boolean;
+  trainingCertificateAttached: boolean;
 };
 
 export type Review = {
@@ -228,7 +258,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 export type PickedFile = { uri: string; name: string; mimeType: string };
 
 /** Signed direct upload: the file goes phone → Cloudinary; the API secret stays on the server. */
-export async function uploadFile(kind: "licence" | "portfolio" | "avatar", file: PickedFile): Promise<string> {
+export async function uploadFile(kind: "licence" | "roc" | "training_certificate" | "portfolio" | "avatar", file: PickedFile): Promise<string> {
   const { uploadUrl, fields } = await api<{ uploadUrl: string; fields: Record<string, string | number> }>(
     kind === "avatar" ? "/me/avatar/upload-signature" : `/operators/me/${kind}/upload-signature`,
     { method: "POST" },

@@ -7,21 +7,55 @@ type Application = {
   fullName: string;
   submittedAt: string | null;
   base: string;
+  province: string | null;
   services: string[];
-  verificationStatus: "in_review" | "approved" | "rejected";
+  verificationStatus: "in_review" | "approved" | "rejected" | "updating";
   rejectionReason: string | null;
+  rplNumber: string | null;
+  rplExpiresOn: string | null;
+  rocHolderName: string | null;
+  rocNumber: string | null;
+  rocExpiresOn: string | null;
+  trainingProvider: string | null;
+  trainingProgramme: string | null;
+  trainingCompletedOn: string | null;
+  eligibleUntil: string | null;
+  canBid: boolean;
+  licenceAttached: boolean;
+  rocAttached: boolean;
+  trainingCertificateAttached: boolean;
 };
 
-type Filter = Application["verificationStatus"];
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: "in_review", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
+type Filter = "in_review" | "updating" | "approved" | "expiring" | "rejected";
+const FILTERS: { value: Filter; label: string; empty: string }[] = [
+  { value: "in_review", label: "Pending", empty: "No pilots are waiting for review." },
+  { value: "updating", label: "Updating", empty: "No approved pilots are updating their details." },
+  { value: "approved", label: "Approved", empty: "No approved pilots yet." },
+  { value: "expiring", label: "Expiring", empty: "No pilot's licence, ROC or update deadline runs out in the next 30 days." },
+  { value: "rejected", label: "Rejected", empty: "No rejected applications." },
 ];
+
+type DocumentKind = "licence" | "roc" | "training_certificate";
+const DOCUMENTS: { kind: DocumentKind; label: string; attached: (a: Application) => boolean }[] = [
+  { kind: "licence", label: "Remote pilot licence", attached: (a) => a.licenceAttached },
+  { kind: "roc", label: "ROC proof", attached: (a) => a.rocAttached },
+  { kind: "training_certificate", label: "Training certificate", attached: (a) => a.trainingCertificateAttached },
+];
+
+const STATUS_LABEL: Record<Application["verificationStatus"], string> = {
+  in_review: "In review",
+  approved: "Approved",
+  rejected: "Rejected",
+  updating: "Updating details",
+};
+
+const daysUntil = (iso: string) => Math.floor((Date.parse(iso) - Date.parse(new Date().toISOString().slice(0, 10))) / 86_400_000);
+const dateOrDash = (iso: string | null) => (iso ? formatDate(iso) : "—");
 
 export function PilotsTab() {
   const [filter, setFilter] = useState<Filter>("in_review");
   const applications = useApi<Application[]>(`/admin/operators?status=${filter}`);
+  const current = FILTERS.find((f) => f.value === filter)!;
 
   return (
     <section>
@@ -34,10 +68,10 @@ export function PilotsTab() {
           <Button variant="outline" className="btn-sm" onClick={applications.reload}>Refresh</Button>
         </div>
       </div>
-      <ListState
-        list={applications}
-        empty={{ title: "Nothing here", body: filter === "in_review" ? "No pilots are waiting for review." : "No pilots in this list yet." }}
-      >
+      <p className="muted small" style={{ marginBottom: 14 }}>
+        Check that the licence and ROC numbers and expiry dates match the documents, and that the ROC holder is who the pilot flies for.
+      </p>
+      <ListState list={applications} empty={{ title: "Nothing here", body: current.empty }}>
         {(items) => (
           <div className="grid">
             {items.map((app) => (
@@ -53,23 +87,23 @@ export function PilotsTab() {
 function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () => void }) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState<null | "licence" | "approve" | "reject">(null);
+  const [busy, setBusy] = useState<null | DocumentKind | "approve" | "reject">(null);
   const [error, setError] = useState<string | null>(null);
 
-  const openLicence = async () => {
+  const openDocument = async (kind: DocumentKind) => {
     // Open the tab now (while the click still counts) so pop-up blockers allow it, then load the link.
     const tab = window.open("", "_blank");
-    if (tab) tab.opener = null; // the licence page must not be able to reach back into the admin tab
-    setBusy("licence");
+    if (tab) tab.opener = null; // the document page must not be able to reach back into the admin tab
+    setBusy(kind);
     setError(null);
     try {
       // A fresh 5-minute link each time; the server records who viewed it.
-      const { url } = await api<{ url: string }>(`/admin/operators/${app.id}/licence`);
+      const { url } = await api<{ url: string }>(`/admin/operators/${app.id}/documents/${kind}`);
       if (tab) tab.location.href = url;
       else window.location.assign(url);
     } catch (e) {
       tab?.close();
-      setError(`Couldn't open the licence: ${errorText(e)}`);
+      setError(`Couldn't open the document: ${errorText(e)}`);
     } finally {
       setBusy(null);
     }
@@ -89,22 +123,63 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
     }
   };
 
+  const days = app.eligibleUntil ? daysUntil(app.eligibleUntil) : null;
+  // Approved before the new rules (no ROC on file): bidding until a deadline.
+  const grandfathered = app.eligibleUntil && !app.rocNumber;
+
   return (
     <Card>
-      <h3>{app.fullName}</h3>
+      <div className="card-head">
+        <h3>{app.fullName}</h3>
+        <span className={`pill pill-${app.verificationStatus}`}>{STATUS_LABEL[app.verificationStatus]}</span>
+      </div>
       <p className="muted small">
-        {app.base || "Base not set"}
+        {app.base || "Base not set"}, {app.province ?? "province not set"}
         {app.submittedAt ? ` · Submitted ${formatDate(app.submittedAt)}` : ""}
       </p>
       <p className="small">Services: {app.services.join(", ") || "—"}</p>
 
-      <button type="button" className="doc" onClick={openLicence} disabled={busy !== null}>
-        <span className="doc-icon">PDF</span>
-        <span>
-          <strong>Remote pilot licence</strong>
-          <span className="muted small">{busy === "licence" ? "Opening secure link…" : "Opens in a new tab · link expires in 5 min"}</span>
-        </span>
-      </button>
+      {app.eligibleUntil ? (
+        <p className={`small ${days !== null && days < 0 ? "danger" : days !== null && days <= 30 ? "warn" : "muted"}`}>
+          {days !== null && days < 0
+            ? `Can't bid: ${grandfathered ? "update deadline" : "licence/ROC"} passed on ${formatDate(app.eligibleUntil)}`
+            : grandfathered
+              ? `Approved before the new rules: must update by ${formatDate(app.eligibleUntil)}`
+              : `Can bid until ${formatDate(app.eligibleUntil)}${days !== null && days <= 30 ? ` (${days} day${days === 1 ? "" : "s"} left)` : ""}`}
+        </p>
+      ) : null}
+
+      <dl className="details">
+        <dt>RPL number</dt><dd>{app.rplNumber ?? "—"}</dd>
+        <dt>RPL expires</dt><dd>{dateOrDash(app.rplExpiresOn)}</dd>
+        <dt>ROC holder</dt><dd>{app.rocHolderName ?? "—"}</dd>
+        <dt>ROC number</dt><dd>{app.rocNumber ?? "—"}</dd>
+        <dt>ROC expires</dt><dd>{dateOrDash(app.rocExpiresOn)}</dd>
+        <dt>Training</dt><dd>{app.trainingProvider ? `${app.trainingProgramme ?? ""}, ${app.trainingProvider}` : "—"}</dd>
+        <dt>Completed</dt><dd>{dateOrDash(app.trainingCompletedOn)}</dd>
+      </dl>
+
+      <div className="docs">
+        {DOCUMENTS.map(({ kind, label, attached }) =>
+          attached(app) ? (
+            <button key={kind} type="button" className="doc" onClick={() => openDocument(kind)} disabled={busy !== null}>
+              <span className="doc-icon">PDF</span>
+              <span>
+                <strong>{label}</strong>
+                <span className="muted small">{busy === kind ? "Opening secure link…" : "New tab · link expires in 5 min"}</span>
+              </span>
+            </button>
+          ) : (
+            <div key={kind} className="doc doc-missing">
+              <span className="doc-icon">—</span>
+              <span>
+                <strong>{label}</strong>
+                <span className="muted small">Not uploaded</span>
+              </span>
+            </div>
+          ),
+        )}
+      </div>
 
       {app.rejectionReason ? <p className="danger small">Reason: {app.rejectionReason}</p> : null}
       {error ? <div className="alert" role="alert">{error}</div> : null}
