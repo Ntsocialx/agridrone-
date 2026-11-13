@@ -104,11 +104,11 @@ outcome through AgriImpact. The marketplace already works; what's missing is (1)
 - Ask your mentor / AgriSETA who does the legal review, and send them the drafts.
 - Later, confirm the AgriImpact indicators so the starter report can be adjusted.
 
-## Open items (need your answer before the phase that uses them)
+## Further decisions (13 November 2026)
 
-1. **Existing approved pilots** (Phase 1): they have no ROC, expiry or training record yet. Do they keep bidding until they complete the new fields (with a deadline), or are they moved back to "needs update" immediately?
-2. **Photos for the three new services** (Phase 2): reuse existing drone photos, or do you want to pick images?
-3. **Training providers** (Phase 1): free text, or a list of accredited providers to choose from (and who maintains it)?
+1. **Existing approved pilots:** notified when the rules go live and can keep bidding for **30 days** while they add the ROC, expiry dates, training record and province; after that they're blocked until they complete them and an admin re-approves.
+2. **Photos for the three new services:** reuse the existing verified drone photos for now.
+3. **Training providers:** free text (provider and programme names); admins check them against the certificate; the report groups by the typed names.
 
 ## Risks
 
