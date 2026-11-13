@@ -383,6 +383,11 @@ submissions and concurrent double selection.
     notifications, delete account (anonymise), privacy policy draft,
     Help page with FAQs and email support, offline banner. Ask before
     starting any of them.
--   **Still missing from the rules above:** an OpenAPI file, and the
-    `docs/privacy/` and `docs/compliance/` documents (sections 5, 8
-    and 9). Flag these rather than claiming they exist.
+-   **Still missing from the rules above:** an OpenAPI file (section 5).
+    Flag it rather than claiming it exists.
+-   **Drafts awaiting legal review (13 November 2026):**
+    `docs/privacy/privacy-policy.md`, `docs/legal/terms-of-service.md`,
+    `docs/compliance/south-african-aviation.md` and
+    `docs/compliance/launch-checklist.md`. The privacy and terms text is
+    edited in `mobile/src/content/*.json` and copied by
+    `mobile/scripts/sync-legal.mjs`.

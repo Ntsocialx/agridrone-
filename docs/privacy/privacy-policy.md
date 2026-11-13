@@ -1,8 +1,8 @@
 # AgricDrone Hub Privacy policy
 
-_Last updated 12 November 2026._ **Draft: awaiting review. This wording has not yet been approved and may change.**
+_Last updated 13 November 2026._ **Draft: awaiting review. This wording has not yet been approved and may change.**
 
-> Generated from `mobile/src/content/privacy.json` by `mobile/scripts/sync-privacy.mjs`; edit the JSON, not this file.
+> Generated from `mobile/src/content/privacy.json` by `mobile/scripts/sync-legal.mjs`; edit the JSON, not this file.
 
 AgricDrone Hub connects farm owners with drone pilots for agricultural mapping, monitoring and surveying. This policy explains what personal information we collect, why, who can see it and what you can ask us to do with it, in line with South Africa's Protection of Personal Information Act (POPIA).
 
@@ -13,14 +13,14 @@ AgricDrone Hub is responsible for the personal information described here. Conta
 ## What we collect
 
 - Account details: your full name, email address, mobile number, whether you are a pilot or a farm owner, and your password (stored only as a secure one-way hash, never as readable text).
-- Your consent: the version and date of the Terms and Privacy notice you accepted, and, for pilots, the separate consent given before uploading a licence.
-- Pilot profile: operating base (town and province), service radius, services offered and verification status, including the reason if verification was not approved.
-- Pilot licence: the photo or PDF of your remote pilot licence.
+- Your consent: the version and date of the Terms and Privacy notice you accepted, and, for pilots, the separate consent given before uploading verification documents.
+- Pilot profile: operating base, province, service radius, services offered and verification status, including the reason if verification was not approved.
+- Pilot verification details: your remote pilot licence number, expiry date and a copy of the licence; the holder, number and expiry date of the Remote Operating Certificate you fly under, and proof of it; and your training provider, programme, completion date and training certificate.
 - Photos: an optional profile picture, and pilots' optional portfolio photos.
-- Jobs and bids: job title, farm location as you type it, area, preferred date, budget and description; bid amounts, timeframes and messages.
+- Jobs and bids: job title, farm location as you type it, province, area, preferred date, budget and description; bid amounts, timeframes and messages.
 - Ratings and reports: star ratings and written reviews, reports about job posts or reviews, and the outcome.
 - Notifications you receive in the app and whether you have read them.
-- A record of sensitive actions (for example a password change, an admin decision, or an admin viewing a licence) with who did it and when.
+- A record of sensitive actions (for example a password change, an admin decision, or an admin viewing a verification document) with who did it and when.
 
 We do not collect ID numbers, banking details, precise GPS location or biometric data. AgricDrone Hub does not handle payments; any price agreed is between the farm owner and the pilot.
 
@@ -28,16 +28,17 @@ We do not collect ID numbers, banking details, precise GPS location or biometric
 
 - To create and secure your account and let you sign in, including sending a password-reset code by email when you ask for one.
 - To run the marketplace: showing jobs to pilots, sending bids to farm owners, recording who was chosen and confirming completed work.
-- To check pilot licences before a pilot can bid. This is an internal platform check, not approval by the South African Civil Aviation Authority.
+- To check pilots' licences, operating certificates and training before they can bid, and to remind pilots before their licence or certificate expires. This is an internal platform check, not approval by the South African Civil Aviation Authority.
 - To keep the platform safe: reviewing reports, removing job posts that break the rules and suspending accounts where needed.
 - To send you in-app notices about your jobs, verification, reviews and reports, and occasional announcements or app updates.
+- To measure whether drone training leads to work, we produce reports for programme funders (such as AgriSETA) that contain totals only, for example how many trained pilots were verified, got a first job and completed jobs, by province, service and training programme. These reports don't include names or contact details.
 
 ## Who can see your information
 
 - Signed-in users can see open job posts, including the farm owner's name.
 - A farm owner sees the bids on their own jobs, including the pilot's name, price and message. A pilot sees only their own bids.
 - Anyone signed in can see a pilot's public profile: name, base, services, verification status, completed jobs, portfolio photos and visible reviews. Reviewers are shown by first name only.
-- Your licence is private. Only AgricDrone Hub admins can open it, through a link that expires after 5 minutes, and every view is recorded.
+- Your licence, Remote Operating Certificate proof and training certificate, their numbers and expiry dates, and your training record are private. Only AgricDrone Hub admins can see them; documents open through a link that expires after 5 minutes, and every view is recorded.
 - Your email address and phone number are not shown to other users.
 - AgricDrone Hub admins can see what they need to verify pilots and handle reports.
 
@@ -61,7 +62,7 @@ We use these providers to run the app. They process information on our behalf, a
 
 ## How long we keep it
 
-We keep your information while your account is open. Replacing your licence or profile picture, or removing a portfolio photo, deletes the old file from storage. In-app account deletion is being added; until then, email tiyanithebest@gmail.com to ask for your account to be deleted. Some records, such as finished jobs, reviews and the record of sensitive actions, may be kept without your personal details so the other person's history still makes sense and so we can show what happened if there is a dispute.
+We keep your information while your account is open. Replacing a verification document or your profile picture, or removing a portfolio photo, deletes the old file from storage. In-app account deletion is being added; until then, email tiyanithebest@gmail.com to ask for your account to be deleted. Some records, such as finished jobs, reviews and the record of sensitive actions, may be kept without your personal details so the other person's history still makes sense and so we can show what happened if there is a dispute.
 
 ## Your rights
 

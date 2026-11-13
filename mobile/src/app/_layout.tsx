@@ -30,6 +30,7 @@ function RootStack() {
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="terms" />
       <Stack.Screen name="help" />
       {/* UI guard only; the API authorises every request itself. */}
       <Stack.Protected guard={!!user}>

@@ -49,7 +49,9 @@ export function Login({ onSignedIn, notice }: { onSignedIn: (token: string, user
         <p className="hint">The server may take up to a minute to wake up on the first sign-in.</p>
       </form>
       <footer className="legal">
-        <a href="https://www.agriseta.co.za/" target="_blank" rel="noreferrer">Terms and Conditions</a>
+        <a href="/terms" target="_blank" rel="noreferrer">Terms and Conditions</a>
+        <span aria-hidden>|</span>
+        <a href="/privacy" target="_blank" rel="noreferrer">Privacy</a>
         <span aria-hidden>|</span>
         <span>Powered by 4IR</span>
       </footer>

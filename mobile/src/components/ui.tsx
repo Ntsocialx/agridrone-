@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Animated, Linking, Pressable, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Animated, Pressable, TextInput, View, type TextInputProps } from "react-native";
 import { router, usePathname, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { JobStatus } from "../lib/api";
@@ -268,14 +268,12 @@ export function BottomNav() {
   );
 }
 
-const TERMS_URL = "https://www.agriseta.co.za/";
-
 /** "Terms and Conditions | Powered by 4IR" line for the welcome and sign-in screens. */
 export function LegalFooter({ onDark }: { onDark?: boolean }) {
   const tone = onDark ? "text-paper/70" : "text-muted";
   return (
     <View className="flex-row justify-center items-center">
-      <Pressable onPress={() => Linking.openURL(TERMS_URL)} accessibilityRole="link" hitSlop={8}>
+      <Pressable onPress={() => router.push("/terms")} accessibilityRole="link" hitSlop={8}>
         <Text className={`${tone} text-xs underline`}>Terms and Conditions</Text>
       </Pressable>
       <Text className={`${tone} text-xs mx-2`}>|</Text>

@@ -1,6 +1,6 @@
 # Stage 5 Plan — From training to earning (compliance, services, training records, impact report)
 
-**Status:** Draft for approval (13 November 2026). No code changes until approved.
+**Status:** Approved 13 November 2026 ("yes"). Phase 1 built on `dev` (13 Nov): server + 48 tests, app, admin site, legal drafts. Not live until migration 007 is run on Neon and `dev` is merged. Phases 2–4 not started.
 **Source:** Concept brief §5.15 "AgriDrone Hub — from training to earning" (AgriSETA 4IR skills priorities), and the decisions below.
 **Depends on:** Stage 4 system (live API on Render, Neon migrations 001–006, mobile app v2.0.0, admin website on Vercel).
 
