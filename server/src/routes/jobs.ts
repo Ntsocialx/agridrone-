@@ -138,7 +138,7 @@ export function jobsRouter(db: Db) {
       );
       throw forbidden(
         profile[0]?.verified
-          ? "Your licence or ROC has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them."
+          ? "Your licence, ROC or medical has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them."
           : "Your verification must be approved before you can bid.",
       );
     }
@@ -167,7 +167,7 @@ export function jobsRouter(db: Db) {
       if (!bid[0]) throw notFound("Bid");
       // A pilot whose licence or ROC lapsed after bidding can't be chosen.
       if (!(await isEligible(tx, bid[0].operatorId))) {
-        throw conflict("This pilot's licence or ROC isn't current, so they can't be selected right now. Choose another bid or try again later.");
+        throw conflict("This pilot's licence, ROC or medical isn't current, so they can't be selected right now. Choose another bid or try again later.");
       }
 
       // The status guard makes a second, concurrent selection a no-op.

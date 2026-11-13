@@ -16,7 +16,7 @@ export const PROVINCES = [
 /**
  * The one rule for who may bid and be selected (operator_profiles aliased `p`):
  * an admin has verified their credentials and the verified validity hasn't run out.
- * `eligible_until` is the earlier of the RPL and ROC expiry dates at approval (or a
+ * `eligible_until` is the earliest of the RPL, ROC and medical expiry dates at approval (or a
  * grace-period deadline), so pilots who are updating or renewing keep bidding until then.
  */
 export const ELIGIBLE_SQL = `(p.verification_status IN ('approved', 'updating', 'in_review') AND p.eligible_until >= CURRENT_DATE)`;
@@ -30,12 +30,13 @@ type ReminderRow = {
   until: string;
   untilText: string;
   daysLeft: number;
-  reason: "rpl" | "roc" | "deadline";
+  reason: "rpl" | "roc" | "medical" | "deadline";
 };
 
 const COPY = {
   rpl: { thing: "remote pilot licence", soon: "Licence expiring soon", over: "Licence expired" },
   roc: { thing: "Remote Operating Certificate", soon: "ROC expiring soon", over: "ROC expired" },
+  medical: { thing: "Class 3 medical certificate", soon: "Medical expiring soon", over: "Medical expired" },
   deadline: { thing: "", soon: "Update your pilot details", over: "Pilot details overdue" },
 } as const;
 
@@ -48,7 +49,8 @@ export async function sendExpiryReminders(db: Queryable, userId: string) {
   const { rows } = await db.query<ReminderRow>(
     `SELECT to_char(eligible_until, 'YYYY-MM-DD') AS until, to_char(eligible_until, 'FMDD Mon YYYY') AS "untilText",
        (eligible_until - CURRENT_DATE) AS "daysLeft",
-       CASE WHEN eligible_until = rpl_expires_on THEN 'rpl' WHEN eligible_until = roc_expires_on THEN 'roc' ELSE 'deadline' END AS reason
+       CASE WHEN eligible_until = rpl_expires_on THEN 'rpl' WHEN eligible_until = roc_expires_on THEN 'roc'
+         WHEN eligible_until = medical_expires_on THEN 'medical' ELSE 'deadline' END AS reason
      FROM operator_profiles
      WHERE user_id = $1 AND eligible_until IS NOT NULL AND verification_status IN ('approved', 'updating', 'in_review')`,
     [userId],
@@ -70,13 +72,13 @@ export async function sendExpiryReminders(db: Queryable, userId: string) {
   if (stage === "expired") {
     const body =
       row.reason === "deadline"
-        ? "The deadline to add your ROC, licence expiry and training details has passed. Update them in Profile; you can bid again once an admin approves them."
+        ? "The deadline to add your ROC, licence expiry, medical, flight log and training details has passed. Update them in Profile; you can bid again once an admin approves them."
         : `Your ${copy.thing} expired on ${row.untilText}. Upload the renewed document in Profile; you can bid again once an admin approves it.`;
     await notify(db, userId, "verification", copy.over, body);
   } else {
     const body =
       row.reason === "deadline"
-        ? `Add your ROC, licence expiry and training details in Profile by ${row.untilText} to keep bidding.`
+        ? `Add your ROC, licence expiry, medical, flight log and training details in Profile by ${row.untilText} to keep bidding.`
         : `Your ${copy.thing} expires on ${row.untilText}. Renew it and update your details in Profile so you can keep bidding.`;
     await notify(db, userId, "verification", copy.soon, body);
   }

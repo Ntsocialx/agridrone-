@@ -45,6 +45,32 @@ async function main() {
     await storage.remove(publicId, "authenticated");
     step("test file deleted", (await storage.find(publicId, "authenticated")) === null);
   }
+
+  // Spreadsheets (flight logs) are stored as 'raw' files and get their extension added to the id.
+  const csvId = `agridrone/connection-check/${randomUUID()}`;
+  const signed = storage.signUpload({ publicId: csvId, type: "authenticated", allowedFormats: ["csv"] });
+  const csvForm = new FormData();
+  for (const [key, value] of Object.entries(signed.fields)) csvForm.append(key, String(value));
+  csvForm.append("file", new Blob(["date,hours\n2026-11-01,1.5\n"], { type: "text/csv" }), "check.csv");
+  const csvUpload = await fetch(signed.uploadUrl, { method: "POST", body: csvForm });
+  step("signed private spreadsheet upload accepted", csvUpload.ok);
+  if (!csvUpload.ok) {
+    console.info((await csvUpload.text()).slice(0, 200));
+    return;
+  }
+  const storedId = String(((await csvUpload.json()) as { public_id: string }).public_id);
+  step("Cloudinary added the extension to the id", storedId === `${csvId}.csv`);
+  try {
+    const file = await storage.find(storedId, "authenticated");
+    step("server can look the spreadsheet up as csv", file?.format === "csv");
+    step("spreadsheet is NOT reachable at a public URL", !(await fetch(`https://res.cloudinary.com/${cloudName}/raw/upload/${storedId}`)).ok);
+    const link = storage.privateUrl(storedId, "csv", Math.floor(Date.now() / 1000) + 300);
+    const download = await fetch(link);
+    step("5-minute admin link downloads the spreadsheet", download.ok && (await download.text()).startsWith("date,hours"));
+  } finally {
+    await storage.remove(storedId, "authenticated");
+    step("test spreadsheet deleted", (await storage.find(storedId, "authenticated")) === null);
+  }
 }
 
 main();

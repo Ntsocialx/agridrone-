@@ -17,9 +17,11 @@ const PROFILE_FIELDS = `
   p.roc_holder_name AS "rocHolderName", p.roc_number AS "rocNumber", ${date("p.roc_expires_on")} AS "rocExpiresOn",
   p.training_provider AS "trainingProvider", p.training_programme AS "trainingProgramme",
   ${date("p.training_completed_on")} AS "trainingCompletedOn",
+  ${date("p.medical_expires_on")} AS "medicalExpiresOn", p.flight_hours::float8 AS "flightHours",
   ${date("p.eligible_until")} AS "eligibleUntil", ${ELIGIBLE_SQL} AS "canBid",
   ${attached("licence")} AS "licenceAttached", ${attached("roc")} AS "rocAttached",
-  ${attached("training_certificate")} AS "trainingCertificateAttached"`;
+  ${attached("medical_certificate")} AS "medicalCertificateAttached",
+  ${attached("training_certificate")} AS "trainingCertificateAttached", ${attached("flight_log")} AS "flightLogAttached"`;
 
 /** Statuses in which the pilot can change their details and documents (uploads.ts locks the rest). */
 const editable = `p.verification_status IN ('not_submitted', 'rejected', 'updating')`;
@@ -41,6 +43,8 @@ const profileSchema = z.object({
   trainingProvider: optional(z.string().trim().min(2).max(120)),
   trainingProgramme: optional(z.string().trim().min(2).max(120)),
   trainingCompletedOn: optional(isoDate),
+  medicalExpiresOn: optional(isoDate),
+  flightHours: optional(z.number().min(0).max(100_000)),
 });
 
 const OPTIONAL_COLUMNS = {
@@ -53,6 +57,8 @@ const OPTIONAL_COLUMNS = {
   trainingProvider: "training_provider",
   trainingProgramme: "training_programme",
   trainingCompletedOn: "training_completed_on",
+  medicalExpiresOn: "medical_expires_on",
+  flightHours: "flight_hours",
 } as const;
 
 type Profile = {
@@ -67,9 +73,13 @@ type Profile = {
   trainingProvider: string | null;
   trainingProgramme: string | null;
   trainingCompletedOn: string | null;
+  medicalExpiresOn: string | null;
+  flightHours: number | null;
   licenceAttached: boolean;
   rocAttached: boolean;
+  medicalCertificateAttached: boolean;
   trainingCertificateAttached: boolean;
+  flightLogAttached: boolean;
 };
 
 /** What still stops this profile being submitted, in the words the pilot sees. */
@@ -84,6 +94,10 @@ function missingForSubmit(p: Profile, today: string) {
   if (!p.rocHolderName || !p.rocNumber) missing.push("ROC holder and ROC number");
   if (!p.rocExpiresOn || p.rocExpiresOn <= today) missing.push("an ROC expiry date in the future");
   if (!p.rocAttached) missing.push("ROC proof");
+  if (!p.medicalExpiresOn || p.medicalExpiresOn <= today) missing.push("a medical certificate expiry date in the future");
+  if (!p.medicalCertificateAttached) missing.push("Class 3 medical certificate");
+  if (p.flightHours === null) missing.push("total flight hours");
+  if (!p.flightLogAttached) missing.push("flight log");
   if (!p.trainingProvider || !p.trainingProgramme) missing.push("training provider and programme");
   if (!p.trainingCompletedOn || p.trainingCompletedOn > today) missing.push("training completion date");
   if (!p.trainingCertificateAttached) missing.push("training certificate");
@@ -200,19 +214,19 @@ export function adminRouter(db: Db) {
     const operatorId = idParam(request.params.id, "Application in review");
 
     const profile = await db.transaction(async (tx) => {
-      // Approval makes the pilot eligible until the earlier expiry; rejection ends eligibility.
+      // Approval makes the pilot eligible until the earliest expiry; rejection ends eligibility.
       const { rows } = await tx.query(
         `UPDATE operator_profiles p SET verification_status = $2, rejection_reason = $3, updated_at = now(),
-           eligible_until = CASE WHEN $2 = 'approved' THEN LEAST(p.rpl_expires_on, p.roc_expires_on) ELSE NULL END,
+           eligible_until = CASE WHEN $2 = 'approved' THEN LEAST(p.rpl_expires_on, p.roc_expires_on, p.medical_expires_on) ELSE NULL END,
            reminders_sent = '{}'
          WHERE p.user_id = $1 AND p.verification_status = 'in_review'
-           AND ($2 = 'rejected' OR LEAST(p.rpl_expires_on, p.roc_expires_on) >= CURRENT_DATE)
+           AND ($2 = 'rejected' OR LEAST(p.rpl_expires_on, p.roc_expires_on, p.medical_expires_on) >= CURRENT_DATE)
          RETURNING ${PROFILE_FIELDS}`,
         [operatorId, input.decision, reason],
       );
       if (!rows[0]) {
         const { rows: inReview } = await tx.query("SELECT 1 FROM operator_profiles WHERE user_id = $1 AND verification_status = 'in_review'", [operatorId]);
-        if (inReview.length) throw conflict("The licence or ROC expiry date has already passed. Reject it so the pilot can upload a current document.");
+        if (inReview.length) throw conflict("The licence, ROC or medical expiry date has already passed. Reject it so the pilot can upload a current document.");
         throw notFound("Application in review");
       }
       await tx.query(
@@ -220,7 +234,7 @@ export function adminRouter(db: Db) {
         [admin.id, `verification_${input.decision}`, operatorId, reason],
       );
       if (input.decision === "approved") {
-        await notify(tx, operatorId, "verification", "You're verified", "Your licence, ROC and training were approved. You can now bid on jobs.");
+        await notify(tx, operatorId, "verification", "You're verified", "Your licence, ROC, medical, flight log and training were approved. You can now bid on jobs.");
       } else {
         await notify(tx, operatorId, "verification", "Verification not approved", `Reason: ${reason}. Update your profile and submit again.`);
       }

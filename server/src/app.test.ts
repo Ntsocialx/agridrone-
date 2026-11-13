@@ -77,7 +77,8 @@ const JOB = {
 };
 const BID = { amountZar: 4200, days: 3, message: "Can fly early next week." };
 
-type Document = "licence" | "roc" | "training_certificate";
+const DOCUMENTS = ["licence", "roc", "medical_certificate", "training_certificate", "flight_log"] as const;
+type Document = (typeof DOCUMENTS)[number];
 async function attachDocument(token: string, kind: Document) {
   await as(token).post("/api/v1/operators/me/licence/consent", { accept: true });
   const signed = await as(token).post(`/api/v1/operators/me/${kind}/upload-signature`);
@@ -100,12 +101,15 @@ const PROFILE = {
   trainingProvider: "Test Flight School",
   trainingProgramme: "RPL multirotor course",
   trainingCompletedOn: inDays(-60),
+  // The earliest expiry, so it sets how long an approved pilot can bid.
+  medicalExpiresOn: inDays(250),
+  flightHours: 52.5,
 };
 
 /** Fills in every detail and document verification needs. */
 async function completeProfile(token: string) {
   await as(token).put("/api/v1/operators/me", PROFILE);
-  for (const kind of ["licence", "roc", "training_certificate"] as const) await attachDocument(token, kind);
+  for (const kind of DOCUMENTS) await attachDocument(token, kind);
 }
 
 async function approvedOperator(adminToken: string) {
@@ -255,6 +259,9 @@ describe("operator verification", () => {
     expect(early.body.error.message).toContain("ROC proof");
     expect(early.body.error.message).toContain("training certificate");
     expect(early.body.error.message).toContain("province");
+    expect(early.body.error.message).toContain("Class 3 medical certificate");
+    expect(early.body.error.message).toContain("flight log");
+    expect(early.body.error.message).toContain("total flight hours");
     expect(early.body.error.message).not.toContain("licence document");
 
     await completeProfile(operator.token);
@@ -708,10 +715,17 @@ describe("credentials, expiry and training (stage 5)", () => {
     expect((await as(admin).get(`/api/v1/admin/operators/${operator.id}/documents/passport`)).status).toBe(400);
   });
 
-  it("sets eligibility to the earlier expiry on approval, and won't approve expired documents", async () => {
+  it("sets eligibility to the earliest expiry on approval, and won't approve expired documents", async () => {
     const admin = await createAdmin();
     const pilot = await approvedOperator(admin);
-    expect(await status(pilot.token)).toMatchObject({ verificationStatus: "approved", canBid: true, eligibleUntil: PROFILE.rocExpiresOn });
+    expect(await status(pilot.token)).toMatchObject({
+      verificationStatus: "approved",
+      canBid: true,
+      eligibleUntil: PROFILE.medicalExpiresOn,
+      flightHours: 52.5,
+      medicalCertificateAttached: true,
+      flightLogAttached: true,
+    });
 
     const late = await register("operator");
     await completeProfile(late.token);
@@ -791,6 +805,40 @@ describe("credentials, expiry and training (stage 5)", () => {
     expect((await as(pilot.token).post(`/api/v1/jobs/${next.body.id}/bids`, BID)).status).toBe(403);
     await status(pilot.token);
     expect(await titles(pilot.token)).toContain("Pilot details overdue");
+  });
+
+  it("accepts spreadsheet flight logs, but only PDFs and photos for the medical certificate", async () => {
+    const admin = await createAdmin();
+    const operator = await register("operator");
+    await as(operator.token).post("/api/v1/operators/me/licence/consent", { accept: true });
+    const upload = async (kind: Document, format: string) => {
+      const signed = await as(operator.token).post(`/api/v1/operators/me/${kind}/upload-signature`);
+      // Cloudinary adds the extension to a spreadsheet's id, and the app sends back that id.
+      const publicId = `${signed.body.fields.public_id}.${format}`;
+      files.set(publicId, { format, bytes: 2000, secureUrl: "" });
+      return { response: await as(operator.token).post(`/api/v1/operators/me/${kind}`, { publicId }), publicId };
+    };
+
+    const log = await upload("flight_log", "xlsx");
+    expect(log.response.status).toBe(201);
+    const medical = await upload("medical_certificate", "csv");
+    expect(medical.response.status).toBe(400);
+    expect(removed).toContain(medical.publicId);
+
+    const link = await as(admin).get(`/api/v1/admin/operators/${operator.id}/documents/flight_log`);
+    expect(link.status).toBe(200);
+    const audit = await db.query("SELECT 1 FROM audit_log WHERE target_id = $1 AND action = 'medical_certificate_viewed'", [operator.id]);
+    expect(audit.rows).toHaveLength(0);
+  });
+
+  it("reminds pilots before their medical expires", async () => {
+    const admin = await createAdmin();
+    const pilot = await approvedOperator(admin);
+    await db.query("UPDATE operator_profiles SET medical_expires_on = CURRENT_DATE + 6, eligible_until = CURRENT_DATE + 6 WHERE user_id = $1", [pilot.id]);
+    await status(pilot.token);
+    const notes = (await as(pilot.token).get("/api/v1/notifications")).body as { title: string; body: string }[];
+    expect(notes[0].title).toBe("Medical expiring soon");
+    expect(notes[0].body).toContain("Class 3 medical certificate");
   });
 
   it("lists expiring pilots for admins and stores the job's province", async () => {

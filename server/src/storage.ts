@@ -10,6 +10,14 @@ export type SignedUpload = {
 
 export type StoredFile = { format: string; bytes: number; secureUrl: string };
 
+// Spreadsheets (flight logs) are stored by Cloudinary as 'raw' files, and it adds the
+// extension to the public_id (e.g. "…/uuid.csv"); PDFs and photos are 'image' with no
+// extension. So the extension tells us how a file is stored. (Checked live, 13 Nov 2026.)
+const RAW_FORMATS = ["csv", "xlsx", "xls"];
+const extensionOf = (publicId: string) => /\.([a-z0-9]+)$/i.exec(publicId)?.[1]?.toLowerCase();
+export const isRawFile = (publicId: string) => RAW_FORMATS.includes(extensionOf(publicId) ?? "");
+const resourceType = (publicId: string) => (isRawFile(publicId) ? "raw" : "image");
+
 /** The few Cloudinary operations the API needs, behind an interface for tests. */
 export type Storage = {
   signUpload(params: { publicId: string; type: DeliveryType; allowedFormats: string[] }): SignedUpload;
@@ -43,9 +51,9 @@ export function createCloudinaryStorage(config: { cloudName: string; apiKey: str
 
     async find(publicId, type) {
       try {
-        // Only PDF/JPG/PNG/WEBP are allowed, and Cloudinary stores all of them as 'image'.
-        const r = await cloudinary.api.resource(publicId, { type, resource_type: "image" });
-        return { format: r.format, bytes: r.bytes, secureUrl: r.secure_url };
+        const r = await cloudinary.api.resource(publicId, { type, resource_type: resourceType(publicId) });
+        // Raw files report no format; their extension is the format.
+        return { format: r.format ?? extensionOf(publicId) ?? "", bytes: r.bytes, secureUrl: r.secure_url };
       } catch (error) {
         if ((error as { error?: { http_code?: number } }).error?.http_code === 404) return null;
         throw error;
@@ -53,11 +61,14 @@ export function createCloudinaryStorage(config: { cloudName: string; apiKey: str
     },
 
     async remove(publicId, type) {
-      await cloudinary.uploader.destroy(publicId, { type, resource_type: "image", invalidate: true });
+      await cloudinary.uploader.destroy(publicId, { type, resource_type: resourceType(publicId), invalidate: true });
     },
 
     privateUrl(publicId, format, expiresAt) {
-      return cloudinary.utils.private_download_url(publicId, format, { type: "authenticated", expires_at: expiresAt });
+      // A raw file's public_id already ends in its extension, so no format is added.
+      return isRawFile(publicId)
+        ? cloudinary.utils.private_download_url(publicId, "", { type: "authenticated", resource_type: "raw", expires_at: expiresAt })
+        : cloudinary.utils.private_download_url(publicId, format, { type: "authenticated", expires_at: expiresAt });
     },
   };
 }
