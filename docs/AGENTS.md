@@ -223,6 +223,11 @@ silently changing scope.
 -   Collect only information necessary for the MVP. Do not add ID
     numbers, biometrics, health data or children's data without a
     documented need and explicit legal review.
+    Exception recorded 13 November 2026 (user decision): pilots upload a
+    Class 3 medical certificate (health data). Need documented in
+    `docs/compliance/south-african-aviation.md` (gap G7); explicit
+    consent, private storage, admin-only access, only the expiry date
+    kept as data. Legal review is still required before launch.
 -   Document data purpose, access, retention, deletion, data-subject
     requests and incident response under `docs/privacy/`.
 -   Avoid collecting precise location unless the feature needs it; ask

@@ -74,14 +74,14 @@ export default function JobDetailsScreen() {
     if (j.status === "completed") footer = { hint: "Completed. This job now shows on your public profile." };
   } else if (user.role === "operator" && j.status === "open") {
     const canBid = profile.data?.canBid ?? false;
-    // Verified before, but the licence/ROC (or the update deadline) has run out.
+    // Verified before, but the licence/ROC/medical (or the update deadline) has run out.
     const lapsed = !canBid && !!profile.data?.eligibleUntil;
     footer = myBid
       ? { hint: `Your bid: ${formatZar(myBid.amountZar)} in ${myBid.days} day${myBid.days === 1 ? "" : "s"}.` }
       : canBid
         ? { button: <Button label="Place a bid" onPress={() => setSheetOpen(true)} /> }
         : lapsed
-          ? { hint: "Your licence or ROC has expired. Update your details in Profile to bid again.", button: <Button label="Bidding paused" disabled onPress={() => {}} /> }
+          ? { hint: "Your licence, ROC or medical has expired. Update your details in Profile to bid again.", button: <Button label="Bidding paused" disabled onPress={() => {}} /> }
           : { hint: "Bidding opens once an admin approves your verification.", button: <Button label="Verification required" disabled onPress={() => {}} /> };
   }
 

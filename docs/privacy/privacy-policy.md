@@ -15,7 +15,7 @@ AgricDrone Hub is responsible for the personal information described here. Conta
 - Account details: your full name, email address, mobile number, whether you are a pilot or a farm owner, and your password (stored only as a secure one-way hash, never as readable text).
 - Your consent: the version and date of the Terms and Privacy notice you accepted, and, for pilots, the separate consent given before uploading verification documents.
 - Pilot profile: operating base, province, service radius, services offered and verification status, including the reason if verification was not approved.
-- Pilot verification details: your remote pilot licence number, expiry date and a copy of the licence; the holder, number and expiry date of the Remote Operating Certificate you fly under, and proof of it; and your training provider, programme, completion date and training certificate.
+- Pilot verification details: your remote pilot licence number, expiry date and a copy of the licence; the holder, number and expiry date of the Remote Operating Certificate you fly under, and proof of it; the expiry date and a copy of your Class 3 medical certificate; your total flight hours and flight log; and your training provider, programme, completion date and training certificate.
 - Photos: an optional profile picture, and pilots' optional portfolio photos.
 - Jobs and bids: job title, farm location as you type it, province, area, preferred date, budget and description; bid amounts, timeframes and messages.
 - Ratings and reports: star ratings and written reviews, reports about job posts or reviews, and the outcome.
@@ -24,11 +24,13 @@ AgricDrone Hub is responsible for the personal information described here. Conta
 
 We do not collect ID numbers, banking details, precise GPS location or biometric data. AgricDrone Hub does not handle payments; any price agreed is between the farm owner and the pilot.
 
+Your medical certificate is health information, which POPIA treats as special personal information. We process it only with your explicit consent, only to confirm that it is current as the law requires for your licence, and only admins can see it.
+
 ## Why we use it
 
 - To create and secure your account and let you sign in, including sending a password-reset code by email when you ask for one.
 - To run the marketplace: showing jobs to pilots, sending bids to farm owners, recording who was chosen and confirming completed work.
-- To check pilots' licences, operating certificates and training before they can bid, and to remind pilots before their licence or certificate expires. This is an internal platform check, not approval by the South African Civil Aviation Authority.
+- To check pilots' licences, operating certificates, medical certificates, flight experience and training before they can bid, and to remind pilots before their licence, certificate or medical expires. This is an internal platform check, not approval by the South African Civil Aviation Authority.
 - To keep the platform safe: reviewing reports, removing job posts that break the rules and suspending accounts where needed.
 - To send you in-app notices about your jobs, verification, reviews and reports, and occasional announcements or app updates.
 - To measure whether drone training leads to work, we produce reports for programme funders (such as AgriSETA) that contain totals only, for example how many trained pilots were verified, got a first job and completed jobs, by province, service and training programme. These reports don't include names or contact details.
@@ -38,7 +40,7 @@ We do not collect ID numbers, banking details, precise GPS location or biometric
 - Signed-in users can see open job posts, including the farm owner's name.
 - A farm owner sees the bids on their own jobs, including the pilot's name, price and message. A pilot sees only their own bids.
 - Anyone signed in can see a pilot's public profile: name, base, services, verification status, completed jobs, portfolio photos and visible reviews. Reviewers are shown by first name only.
-- Your licence, Remote Operating Certificate proof and training certificate, their numbers and expiry dates, and your training record are private. Only AgricDrone Hub admins can see them; documents open through a link that expires after 5 minutes, and every view is recorded.
+- Your licence, Remote Operating Certificate proof, medical certificate, training certificate and flight log, their numbers, dates and your flight hours, and your training record are private. Only AgricDrone Hub admins can see them; documents open through a link that expires after 5 minutes, and every view is recorded.
 - Your email address and phone number are not shown to other users.
 - AgricDrone Hub admins can see what they need to verify pilots and handle reports.
 

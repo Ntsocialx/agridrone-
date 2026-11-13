@@ -104,6 +104,13 @@ outcome through AgriImpact. The marketplace already works; what's missing is (1)
 - Ask your mentor / AgriSETA who does the legal review, and send them the drafts.
 - Later, confirm the AgriImpact indicators so the starter report can be adjusted.
 
+## Added after approval (13 November 2026)
+
+- **Class 3 medical certificate:** required for verification, with its expiry date; like the RPL and ROC, its expiry stops bidding (30/7-day reminders). Health information: explicit consent, private, admin-only (compliance gap G7).
+- **Flight log:** required; one file (PDF, photo, Excel or CSV) plus total flight hours. Spreadsheets are stored as Cloudinary "raw" files (checked live).
+- **"RPC licence number":** the user meant the RPL number, which was already collected.
+- **Go-live:** migration 007, the merge to `main` and APK v3 are released together, so the 30-day grace period starts when pilots can actually add the new details.
+
 ## Further decisions (13 November 2026)
 
 1. **Existing approved pilots:** notified when the rules go live and can keep bidding for **30 days** while they add the ROC, expiry dates, training record and province; after that they're blocked until they complete them and an admin re-approves.

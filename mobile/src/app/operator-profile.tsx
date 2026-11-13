@@ -33,12 +33,23 @@ const tooBig = () => new ApiError("That file is over 5 MB. Choose a smaller one.
 
 const TONE = { ok: "bg-teal-soft", warn: "bg-sun/15", danger: "bg-danger/10" };
 
-type DocumentKind = "licence" | "roc" | "training_certificate";
-const DOCUMENT_COPY: Record<DocumentKind, { title: string; hint: string; done: string }> = {
+type DocumentKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log";
+const DOCUMENT_COPY: Record<DocumentKind, { title: string; hint: string; done: string; spreadsheets?: boolean }> = {
   licence: { title: "Remote pilot licence", hint: "Your SACAA RPL", done: "Licence uploaded" },
   roc: { title: "ROC proof", hint: "The ROC certificate, or a letter from the ROC holder you fly for", done: "ROC proof uploaded" },
+  medical_certificate: { title: "Class 3 medical certificate", hint: "Your current Class 3 medical", done: "Medical certificate uploaded" },
   training_certificate: { title: "Training certificate", hint: "Your course completion certificate", done: "Certificate uploaded" },
+  flight_log: { title: "Flight log", hint: "Your logbook", done: "Flight log uploaded", spreadsheets: true },
 };
+
+const PDF_TYPES = ["application/pdf"];
+const PHOTO_TYPES = ["image/jpeg", "image/png"];
+const SPREADSHEET_TYPES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "text/comma-separated-values",
+];
 
 /** Dates are typed as YYYY-MM-DD (the same as Post a job). */
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
@@ -58,21 +69,13 @@ async function pickPhoto(): Promise<PickedFile | null> {
   return { uri: photo.uri, name: mimeType === "image/png" ? "photo.png" : "photo.jpg", mimeType };
 }
 
-async function pickPdf(): Promise<PickedFile | null> {
-  const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
+/** Picks a file of the given types from Files (on web: the browser's file chooser). */
+async function pickFile(types: string[]): Promise<PickedFile | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true });
   if (result.canceled) return null;
   const file = result.assets[0];
   if (file.size && file.size > MAX_BYTES) throw tooBig();
-  return { uri: file.uri, name: file.name, mimeType: "application/pdf" };
-}
-
-/** Web has no action sheet, so the browser's file chooser offers PDF and photos together. */
-async function pickDocumentOnWeb(): Promise<PickedFile | null> {
-  const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"] });
-  if (result.canceled) return null;
-  const file = result.assets[0];
-  if (file.size && file.size > MAX_BYTES) throw tooBig();
-  return { uri: file.uri, name: file.name, mimeType: file.mimeType ?? "application/pdf" };
+  return { uri: file.uri, name: file.name, mimeType: file.mimeType ?? types[0] };
 }
 
 export default function OperatorProfileScreen() {
@@ -103,6 +106,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     trainingProvider: p.trainingProvider ?? "",
     trainingProgramme: p.trainingProgramme ?? "",
     trainingCompletedOn: p.trainingCompletedOn ?? "",
+    medicalExpiresOn: p.medicalExpiresOn ?? "",
+    flightHours: p.flightHours === null ? "" : String(p.flightHours),
   });
   const [services, setServices] = useState<Service[]>(p.services);
   const [province, setProvince] = useState<Province | null>(p.province);
@@ -139,6 +144,13 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     trainingCompletedOn:
       isDate(form.trainingCompletedOn) && form.trainingCompletedOn <= today() ? undefined : "Enter the completion date as YYYY-MM-DD",
     training_certificate: p.trainingCertificateAttached ? undefined : "Upload your training certificate",
+    medicalExpiresOn: futureDate(form.medicalExpiresOn, "medical expiry date"),
+    medical_certificate: p.medicalCertificateAttached ? undefined : "Upload your Class 3 medical certificate",
+    flightHours:
+      form.flightHours.trim() !== "" && Number(form.flightHours) >= 0 && Number(form.flightHours) <= 100_000
+        ? undefined
+        : "Enter your total flight hours (e.g. 52.5)",
+    flight_log: p.flightLogAttached ? undefined : "Upload your flight log",
   };
   const show = (key: keyof typeof errors) => (submitted ? errors[key] : undefined);
 
@@ -172,6 +184,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         trainingProvider: optional(form.trainingProvider),
         trainingProgramme: optional(form.trainingProgramme),
         trainingCompletedOn: isDate(form.trainingCompletedOn) ? form.trainingCompletedOn : null,
+        medicalExpiresOn: isDate(form.medicalExpiresOn) ? form.medicalExpiresOn : null,
+        flightHours: form.flightHours.trim() !== "" && !Number.isNaN(Number(form.flightHours)) ? Number(form.flightHours) : null,
       },
     });
   };
@@ -187,15 +201,20 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
       celebrate(DOCUMENT_COPY[kind].done);
     });
 
-  // Most people keep document photos in their camera roll, not in Files.
-  const pickDocument = (kind: DocumentKind) =>
-    Platform.OS === "web"
-      ? uploadDocument(kind, pickDocumentOnWeb)
-      : Alert.alert(`Upload your ${DOCUMENT_COPY[kind].title.toLowerCase()}`, "Choose a photo of it, or a PDF copy.", [
-          { text: "Photo from library", onPress: () => uploadDocument(kind, pickPhoto) },
-          { text: "PDF file", onPress: () => uploadDocument(kind, pickPdf) },
-          { text: "Cancel", style: "cancel" },
-        ]);
+  // Most people keep document photos in their camera roll, not in Files. Flight logs may also be spreadsheets.
+  const pickDocument = (kind: DocumentKind) => {
+    const fileTypes = DOCUMENT_COPY[kind].spreadsheets ? [...PDF_TYPES, ...SPREADSHEET_TYPES] : PDF_TYPES;
+    if (Platform.OS === "web") return uploadDocument(kind, () => pickFile([...fileTypes, ...PHOTO_TYPES]));
+    Alert.alert(
+      `Upload your ${DOCUMENT_COPY[kind].title.toLowerCase()}`,
+      DOCUMENT_COPY[kind].spreadsheets ? "Choose a photo, a PDF, or an Excel/CSV file." : "Choose a photo of it, or a PDF copy.",
+      [
+        { text: "Photo from library", onPress: () => uploadDocument(kind, pickPhoto) },
+        { text: DOCUMENT_COPY[kind].spreadsheets ? "PDF or spreadsheet" : "PDF file", onPress: () => uploadDocument(kind, () => pickFile(fileTypes)) },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
 
   const addPhoto = () =>
     run("photo", async () => {
@@ -267,7 +286,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
               ? "Uploading securely…"
               : attached
                 ? locked ? "Uploaded and locked" : "Uploaded · tap to replace"
-                : `${DOCUMENT_COPY[kind].hint}. .pdf, .jpg or .png (max 5 MB)`}
+                : `${DOCUMENT_COPY[kind].hint}. ${DOCUMENT_COPY[kind].spreadsheets ? ".pdf, .jpg, .png, .xlsx or .csv" : ".pdf, .jpg or .png"} (max 5 MB)`}
           </Text>
         </View>
       </Pressable>
@@ -337,17 +356,19 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         <Text className="text-ink font-bold mt-8 mb-3 text-base">Verification documents</Text>
         <View className="bg-page p-4 rounded-md mb-4">
           <Text className="text-muted text-xs leading-5">
-            Commercial drone work in South Africa needs a SACAA Remote Pilot Licence and operation under a Remote Operating
-            Certificate (ROC). We collect your licence, ROC proof and training certificate only to check you can be listed as an
-            operator. They are stored privately and only authorised AgricDrone Hub admins can view them, through links that
-            expire after 5 minutes. You can ask us to access, correct or delete them at any time.
+            Commercial drone work in South Africa needs a SACAA Remote Pilot Licence, a current Class 3 medical and operation
+            under a Remote Operating Certificate (ROC). We collect your licence, ROC proof, medical certificate, training
+            certificate and flight log only to check you can be listed as an operator. Your medical certificate is health
+            information: we only use it to confirm it is current. All of them are stored privately and only authorised
+            AgricDrone Hub admins can view them, through links that expire after 5 minutes. You can ask us to access, correct
+            or delete them at any time.
           </Text>
         </View>
         {!locked ? (
           <View className="mb-6">
             <Checkbox checked={uploadConsent} onChange={setUploadConsent}>
-              I consent to AgricDrone Hub storing and reviewing my licence, ROC proof and training certificate for operator
-              verification.
+              I consent to AgricDrone Hub storing and reviewing my licence, ROC proof, Class 3 medical certificate, training
+              certificate and flight log for operator verification.
             </Checkbox>
           </View>
         ) : null}
@@ -368,6 +389,13 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         </View>
         {documentRow("roc", p.rocAttached)}
 
+        <Text className="text-ink font-bold mt-8 mb-1">Class 3 medical certificate</Text>
+        <Text className="text-muted text-xs mb-3">Needed for your licence. Only admins see it.</Text>
+        <View className="gap-y-5 mb-4">
+          <Field label="Medical expiry date" placeholder="YYYY-MM-DD" value={form.medicalExpiresOn} onChangeText={set("medicalExpiresOn")} editable={!locked} keyboardType="numbers-and-punctuation" error={show("medicalExpiresOn")} />
+        </View>
+        {documentRow("medical_certificate", p.medicalCertificateAttached)}
+
         <Text className="text-ink font-bold mt-8 mb-1">Training</Text>
         <Text className="text-muted text-xs mb-3">Where you trained as a drone pilot. Only admins see this.</Text>
         <View className="gap-y-5 mb-4">
@@ -376,6 +404,13 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
           <Field label="Completion date" placeholder="YYYY-MM-DD" value={form.trainingCompletedOn} onChangeText={set("trainingCompletedOn")} editable={!locked} keyboardType="numbers-and-punctuation" error={show("trainingCompletedOn")} />
         </View>
         {documentRow("training_certificate", p.trainingCertificateAttached)}
+
+        <Text className="text-ink font-bold mt-8 mb-1">Flight experience</Text>
+        <Text className="text-muted text-xs mb-3">Your total flying time and logbook. Only admins see them.</Text>
+        <View className="gap-y-5 mb-4">
+          <Field label="Total flight hours" placeholder="e.g. 52.5" value={form.flightHours} onChangeText={set("flightHours")} editable={!locked} keyboardType="decimal-pad" error={show("flightHours")} />
+        </View>
+        {documentRow("flight_log", p.flightLogAttached)}
 
         <Text className="text-ink font-bold mt-8 mb-1 text-base">Portfolio</Text>
         <Text className="text-muted text-xs mb-3">Public photos of your work, shown on your profile to farm owners.</Text>

@@ -19,11 +19,15 @@ type Application = {
   trainingProvider: string | null;
   trainingProgramme: string | null;
   trainingCompletedOn: string | null;
+  medicalExpiresOn: string | null;
+  flightHours: number | null;
   eligibleUntil: string | null;
   canBid: boolean;
   licenceAttached: boolean;
   rocAttached: boolean;
+  medicalCertificateAttached: boolean;
   trainingCertificateAttached: boolean;
+  flightLogAttached: boolean;
 };
 
 type Filter = "in_review" | "updating" | "approved" | "expiring" | "rejected";
@@ -31,15 +35,17 @@ const FILTERS: { value: Filter; label: string; empty: string }[] = [
   { value: "in_review", label: "Pending", empty: "No pilots are waiting for review." },
   { value: "updating", label: "Updating", empty: "No approved pilots are updating their details." },
   { value: "approved", label: "Approved", empty: "No approved pilots yet." },
-  { value: "expiring", label: "Expiring", empty: "No pilot's licence, ROC or update deadline runs out in the next 30 days." },
+  { value: "expiring", label: "Expiring", empty: "No pilot's licence, ROC, medical or update deadline runs out in the next 30 days." },
   { value: "rejected", label: "Rejected", empty: "No rejected applications." },
 ];
 
-type DocumentKind = "licence" | "roc" | "training_certificate";
+type DocumentKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log";
 const DOCUMENTS: { kind: DocumentKind; label: string; attached: (a: Application) => boolean }[] = [
   { kind: "licence", label: "Remote pilot licence", attached: (a) => a.licenceAttached },
   { kind: "roc", label: "ROC proof", attached: (a) => a.rocAttached },
+  { kind: "medical_certificate", label: "Class 3 medical certificate", attached: (a) => a.medicalCertificateAttached },
   { kind: "training_certificate", label: "Training certificate", attached: (a) => a.trainingCertificateAttached },
+  { kind: "flight_log", label: "Flight log", attached: (a) => a.flightLogAttached },
 ];
 
 const STATUS_LABEL: Record<Application["verificationStatus"], string> = {
@@ -69,7 +75,7 @@ export function PilotsTab() {
         </div>
       </div>
       <p className="muted small" style={{ marginBottom: 14 }}>
-        Check that the licence and ROC numbers and expiry dates match the documents, and that the ROC holder is who the pilot flies for.
+        Check that the licence and ROC numbers and the licence, ROC and medical expiry dates match the documents, that the ROC holder is who the pilot flies for, and that the flight log supports the hours given.
       </p>
       <ListState list={applications} empty={{ title: "Nothing here", body: current.empty }}>
         {(items) => (
@@ -142,7 +148,7 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
       {app.eligibleUntil ? (
         <p className={`small ${days !== null && days < 0 ? "danger" : days !== null && days <= 30 ? "warn" : "muted"}`}>
           {days !== null && days < 0
-            ? `Can't bid: ${grandfathered ? "update deadline" : "licence/ROC"} passed on ${formatDate(app.eligibleUntil)}`
+            ? `Can't bid: ${grandfathered ? "update deadline" : "licence/ROC/medical"} passed on ${formatDate(app.eligibleUntil)}`
             : grandfathered
               ? `Approved before the new rules: must update by ${formatDate(app.eligibleUntil)}`
               : `Can bid until ${formatDate(app.eligibleUntil)}${days !== null && days <= 30 ? ` (${days} day${days === 1 ? "" : "s"} left)` : ""}`}
@@ -155,6 +161,8 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
         <dt>ROC holder</dt><dd>{app.rocHolderName ?? "—"}</dd>
         <dt>ROC number</dt><dd>{app.rocNumber ?? "—"}</dd>
         <dt>ROC expires</dt><dd>{dateOrDash(app.rocExpiresOn)}</dd>
+        <dt>Medical expires</dt><dd>{dateOrDash(app.medicalExpiresOn)}</dd>
+        <dt>Flight hours</dt><dd>{app.flightHours ?? "—"}</dd>
         <dt>Training</dt><dd>{app.trainingProvider ? `${app.trainingProgramme ?? ""}, ${app.trainingProvider}` : "—"}</dd>
         <dt>Completed</dt><dd>{dateOrDash(app.trainingCompletedOn)}</dd>
       </dl>

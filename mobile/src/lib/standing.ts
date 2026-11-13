@@ -6,7 +6,13 @@ const daysUntil = (isoDate: string) => Math.floor((Date.parse(isoDate) - Date.pa
 
 /** Which document sets the pilot's bidding deadline, in words. */
 const expiringThing = (p: OperatorProfile) =>
-  p.eligibleUntil === p.rplExpiresOn ? "remote pilot licence" : p.eligibleUntil === p.rocExpiresOn ? "Remote Operating Certificate" : null;
+  p.eligibleUntil === p.rplExpiresOn
+    ? "remote pilot licence"
+    : p.eligibleUntil === p.rocExpiresOn
+      ? "Remote Operating Certificate"
+      : p.eligibleUntil === p.medicalExpiresOn
+        ? "Class 3 medical certificate"
+        : null;
 
 /**
  * Where a pilot stands: can they bid, and what should they do next. Mirrors the server's
@@ -14,26 +20,26 @@ const expiringThing = (p: OperatorProfile) =>
  */
 export function pilotStanding(p: OperatorProfile | null): Standing {
   if (!p || p.verificationStatus === "not_submitted") {
-    return { pill: "Not verified", title: "Finish your profile", body: "Add your licence, ROC and training details to start bidding.", tone: "warn" };
+    return { pill: "Not verified", title: "Finish your profile", body: "Add your licence, ROC, medical, flight log and training details to start bidding.", tone: "warn" };
   }
   if (p.verificationStatus === "rejected") {
     return { pill: "Changes needed", title: "Update your profile", body: "Your verification needs changes before you can bid.", tone: "danger" };
   }
   if (!p.eligibleUntil) {
-    return { pill: "In review", title: "Almost ready to fly", body: "The admin team is checking your licence, ROC and training.", tone: "ok" };
+    return { pill: "In review", title: "Almost ready to fly", body: "The admin team is checking your licence, ROC, medical, flight log and training.", tone: "ok" };
   }
   const until = formatDate(p.eligibleUntil);
   if (!p.canBid) {
     return {
       pill: "Bidding paused",
       title: "Update your details",
-      body: "Your licence or ROC has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them.",
+      body: "Your licence, ROC or medical has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them.",
       tone: "danger",
     };
   }
   // Approved before the new rules: no ROC on file yet, working to a deadline.
   if (!p.rocNumber && p.verificationStatus === "approved") {
-    return { pill: "Update needed", title: "Add your new details", body: `Add your ROC, licence expiry and training in Profile by ${until} to keep bidding.`, tone: "warn" };
+    return { pill: "Update needed", title: "Add your new details", body: `Add your ROC, licence expiry, medical, flight log and training in Profile by ${until} to keep bidding.`, tone: "warn" };
   }
   if (p.verificationStatus === "updating") {
     return { pill: "Updating", title: "Finish your update", body: `Submit your updated details for review. You can keep bidding until ${until}.`, tone: "warn" };

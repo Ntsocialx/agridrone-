@@ -13,6 +13,8 @@ signed off yet. Reviewer(s): *to be named by the mentor / AgriSETA*.
 
 - [ ] Confirm the operator certificate's current name (ROC or UASOC) and whether pilots may fly under an employer's certificate
 - [ ] Confirm the Remote Pilot Licence validity and renewal rules (for expiry reminders)
+- [ ] Confirm the medical class (Class 3) and validity period required for remote pilots
+- [ ] Confirm what a flight log must contain under Part 101, and whether total hours should be checked
 - [ ] Decide whether aircraft registration and the UAS Letter of Authority/Approval must be checked per pilot (gap G1)
 - [ ] Confirm whether an Air Services Licence is needed, and by whom (gap G2)
 - [ ] Decide what jobs must declare about aerodromes and controlled/restricted airspace (gap G3)
@@ -26,6 +28,7 @@ signed off yet. Reviewer(s): *to be named by the mentor / AgriSETA*.
 ## Data protection (POPIA)
 
 - [ ] Responsible party wording ("AgricDrone Hub") and contact address
+- [ ] Medical certificates are health information (special personal information): confirm consent as the lawful basis, private storage, admin-only access and retention (gap G7)
 - [ ] Information Officer registration with the Information Regulator — needed or not?
 - [ ] Cross-border storage (Render and Neon in the USA, Cloudinary, Brevo, Vercel) — adequate safeguards
 - [ ] Retention periods, and the account-deletion process (in-app deletion is planned)

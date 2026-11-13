@@ -92,12 +92,16 @@ export type OperatorProfile = {
   trainingProvider: string | null;
   trainingProgramme: string | null;
   trainingCompletedOn: string | null;
+  medicalExpiresOn: string | null;
+  flightHours: number | null;
   /** Last day the pilot may bid, from the admin-verified expiry dates (or an update deadline). */
   eligibleUntil: string | null;
   canBid: boolean;
   licenceAttached: boolean;
   rocAttached: boolean;
+  medicalCertificateAttached: boolean;
   trainingCertificateAttached: boolean;
+  flightLogAttached: boolean;
 };
 
 export type Review = {
@@ -257,8 +261,13 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 
 export type PickedFile = { uri: string; name: string; mimeType: string };
 
-/** Signed direct upload: the file goes phone → Cloudinary; the API secret stays on the server. */
-export async function uploadFile(kind: "licence" | "roc" | "training_certificate" | "portfolio" | "avatar", file: PickedFile): Promise<string> {
+export type UploadKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log" | "portfolio" | "avatar";
+
+/**
+ * Signed direct upload: the file goes phone → Cloudinary; the API secret stays on the server.
+ * Returns the id Cloudinary stored the file under (spreadsheets get their extension added).
+ */
+export async function uploadFile(kind: UploadKind, file: PickedFile): Promise<string> {
   const { uploadUrl, fields } = await api<{ uploadUrl: string; fields: Record<string, string | number> }>(
     kind === "avatar" ? "/me/avatar/upload-signature" : `/operators/me/${kind}/upload-signature`,
     { method: "POST" },
@@ -285,9 +294,11 @@ export async function uploadFile(kind: "licence" | "roc" | "training_certificate
   if (!response.ok) {
     // Cloudinary explains rejections (e.g. "Image file format heic not allowed").
     const reason = (await response.json().catch(() => null))?.error?.message;
-    throw new ApiError(`Upload was rejected${reason ? `: ${reason}` : ""}. Use a PDF, JPG or PNG under 5 MB.`, response.status);
+    const allowed = kind === "flight_log" ? "a PDF, JPG, PNG, Excel or CSV file" : "a PDF, JPG or PNG";
+    throw new ApiError(`Upload was rejected${reason ? `: ${reason}` : ""}. Use ${allowed} under 5 MB.`, response.status);
   }
-  return String(fields.public_id);
+  const stored = (await response.json().catch(() => null)) as { public_id?: string } | null;
+  return String(stored?.public_id ?? fields.public_id);
 }
 
 export const formatZar = (amount: number) => `R ${String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}`;
