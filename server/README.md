@@ -60,9 +60,10 @@ Errors are `{ "error": { "code", "message" } }`.
 | POST | `/auth/login` | anyone | rate-limited; generic error |
 | POST | `/auth/password/forgot` | anyone | `{ email }`; same reply whether or not the account exists; 503 without Brevo |
 | POST | `/auth/password/reset` | anyone | `{ email, code, newPassword }`; 15-min code, single use, locks after 5 tries; returns a session |
-| GET/PUT | `/operators/me` | operator | base, radius, services, province, RPL number/expiry, ROC holder/number/expiry, Class 3 medical expiry, flight hours, training provider/programme/date; locked while in review/approved; GET also sends due expiry reminders |
+| GET/PUT | `/operators/me` | operator | base, radius, services, province, RPL number/expiry, `licenceTypes` (Aeroplane/Helicopter/Multi-rotor), ROC holder/number/expiry, Class 3 medical expiry, flight hours; locked while in review/approved; GET also sends due expiry reminders |
+| PUT | `/operators/me/flight-hours` | operator | `{ flightHours }`; also allowed once approved (no new review); 409 while in review |
 | POST | `/operators/me/update` | operator | approved → `updating` (edit details; keeps bidding until `eligibleUntil`) |
-| POST | `/operators/me/submit` | operator | → `in_review`; 409 lists anything missing (all details + licence, ROC proof, medical certificate, training certificate, flight log) |
+| POST | `/operators/me/submit` | operator | → `in_review`; 409 lists anything missing (all details incl. licence type + licence, ROC proof, medical certificate, flight log) |
 | GET | `/admin/operators?status=` | admin | `in_review`, `approved`, `rejected`, `updating`, or `expiring` (stops within 30 days) |
 | POST | `/admin/operators/:id/decision` | admin | `rejected` needs `reason`; approval sets `eligibleUntil` to the earliest RPL/ROC/medical expiry (refused if already past); audited |
 | GET | `/jobs?service=&q=` | signed in | marketplace (`open` + `on_hold`) |
@@ -77,8 +78,8 @@ Errors are `{ "error": { "code", "message" } }`.
 | POST | `/reviews` | job's owner | `{ jobId, rating 1–5, comment }`; completed jobs only; one per job |
 | POST | `/reviews/:id/report` | reviewed operator | `{ reason }`; once per review |
 | GET | `/pilots/:id` | signed in | completed jobs, average rating, visible reviews |
-| POST | `/operators/me/licence/consent` | operator | `{ accept: true }`; consent to the verification-documents notice (version 2026-11-13) |
-| POST | `/operators/me/:kind/upload-signature` | operator | `kind`: `licence`, `roc`, `medical_certificate`, `training_certificate`, `flight_log` (need consent) or `portfolio` |
+| POST | `/operators/me/licence/consent` | operator | `{ accept: true }`; consent to the verification-documents notice (version 2026-11-16) |
+| POST | `/operators/me/:kind/upload-signature` | operator | `kind`: `licence`, `roc`, `medical_certificate`, `flight_log` (need consent) or `portfolio` |
 | POST | `/operators/me/:kind` | operator | each document kind above: `{ publicId }` (the id Cloudinary returns; spreadsheets get `.csv`/`.xlsx`/`.xls` added); verified, private, replaces the old file. Flight logs may be PDF, photo, Excel or CSV |
 | POST | `/operators/me/portfolio` | operator | `{ publicId, caption }` |
 | DELETE | `/operators/me/portfolio/:id` | operator | also deletes from Cloudinary |

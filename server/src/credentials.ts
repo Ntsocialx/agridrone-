@@ -72,13 +72,13 @@ export async function sendExpiryReminders(db: Queryable, userId: string) {
   if (stage === "expired") {
     const body =
       row.reason === "deadline"
-        ? "The deadline to add your ROC, licence expiry, medical, flight log and training details has passed. Update them in Profile; you can bid again once an admin approves them."
+        ? "The deadline to add your licence type and expiry, ROC, medical and flight log has passed. Update them in Profile; you can bid again once an admin approves them."
         : `Your ${copy.thing} expired on ${row.untilText}. Upload the renewed document in Profile; you can bid again once an admin approves it.`;
     await notify(db, userId, "verification", copy.over, body);
   } else {
     const body =
       row.reason === "deadline"
-        ? `Add your ROC, licence expiry, medical, flight log and training details in Profile by ${row.untilText} to keep bidding.`
+        ? `Add your licence type and expiry, ROC, medical and flight log in Profile by ${row.untilText} to keep bidding.`
         : `Your ${copy.thing} expires on ${row.untilText}. Renew it and update your details in Profile so you can keep bidding.`;
     await notify(db, userId, "verification", copy.soon, body);
   }

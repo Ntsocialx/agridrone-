@@ -48,6 +48,10 @@ export const SERVICES: Service[] = [
 // Mirrors the server: restricted services are held, never biddable.
 export const isRestricted = (service: Service) => service === "Spraying";
 
+/** SACAA Remote Pilot Licence types: RPL(A), RPL(H), RPL(MR). */
+export const LICENCE_TYPES = ["Aeroplane", "Helicopter", "Multi-rotor"] as const;
+export type LicenceType = (typeof LICENCE_TYPES)[number];
+
 export type Job = {
   id: string;
   title: string;
@@ -101,12 +105,10 @@ export type OperatorProfile = {
   rejectionReason: string | null;
   rplNumber: string | null;
   rplExpiresOn: string | null;
+  licenceTypes: LicenceType[];
   rocHolderName: string | null;
   rocNumber: string | null;
   rocExpiresOn: string | null;
-  trainingProvider: string | null;
-  trainingProgramme: string | null;
-  trainingCompletedOn: string | null;
   medicalExpiresOn: string | null;
   flightHours: number | null;
   /** Last day the pilot may bid, from the admin-verified expiry dates (or an update deadline). */
@@ -115,7 +117,6 @@ export type OperatorProfile = {
   licenceAttached: boolean;
   rocAttached: boolean;
   medicalCertificateAttached: boolean;
-  trainingCertificateAttached: boolean;
   flightLogAttached: boolean;
 };
 
@@ -276,7 +277,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 
 export type PickedFile = { uri: string; name: string; mimeType: string };
 
-export type UploadKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log" | "portfolio" | "avatar";
+export type UploadKind = "licence" | "roc" | "medical_certificate" | "flight_log" | "portfolio" | "avatar";
 
 /**
  * Signed direct upload: the file goes phone → Cloudinary; the API secret stays on the server.

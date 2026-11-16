@@ -5,7 +5,7 @@ import { ELIGIBLE_SQL, PROVINCES, sendExpiryReminders } from "../credentials";
 import type { Db } from "../db";
 import { HttpError, conflict, idParam, notFound, parse } from "../http";
 import { notify } from "../notify";
-import { BIDDABLE_SERVICES, service } from "./jobs";
+import { BIDDABLE_SERVICES, LICENCE_TYPES, service } from "./jobs";
 
 const date = (column: string) => `to_char(${column}, 'YYYY-MM-DD')`;
 const attached = (kind: string) => `EXISTS (SELECT 1 FROM uploads u WHERE u.user_id = p.user_id AND u.kind = '${kind}')`;
@@ -13,15 +13,13 @@ const attached = (kind: string) => `EXISTS (SELECT 1 FROM uploads u WHERE u.user
 const PROFILE_FIELDS = `
   p.base, p.radius_km AS "radiusKm", p.services, p.province,
   p.verification_status AS "verificationStatus", p.rejection_reason AS "rejectionReason",
-  p.rpl_number AS "rplNumber", ${date("p.rpl_expires_on")} AS "rplExpiresOn",
+  p.rpl_number AS "rplNumber", ${date("p.rpl_expires_on")} AS "rplExpiresOn", p.licence_types AS "licenceTypes",
   p.roc_holder_name AS "rocHolderName", p.roc_number AS "rocNumber", ${date("p.roc_expires_on")} AS "rocExpiresOn",
-  p.training_provider AS "trainingProvider", p.training_programme AS "trainingProgramme",
-  ${date("p.training_completed_on")} AS "trainingCompletedOn",
   ${date("p.medical_expires_on")} AS "medicalExpiresOn", p.flight_hours::float8 AS "flightHours",
   ${date("p.eligible_until")} AS "eligibleUntil", ${ELIGIBLE_SQL} AS "canBid",
   ${attached("licence")} AS "licenceAttached", ${attached("roc")} AS "rocAttached",
   ${attached("medical_certificate")} AS "medicalCertificateAttached",
-  ${attached("training_certificate")} AS "trainingCertificateAttached", ${attached("flight_log")} AS "flightLogAttached"`;
+  ${attached("flight_log")} AS "flightLogAttached"`;
 
 /** Statuses in which the pilot can change their details and documents (uploads.ts locks the rest). */
 const editable = `p.verification_status IN ('not_submitted', 'rejected', 'updating')`;
@@ -37,12 +35,10 @@ const profileSchema = z.object({
   province: optional(z.enum(PROVINCES)),
   rplNumber: optional(z.string().trim().min(3).max(40)),
   rplExpiresOn: optional(isoDate),
+  licenceTypes: z.array(z.enum(LICENCE_TYPES)).min(1).max(LICENCE_TYPES.length).optional(),
   rocHolderName: optional(z.string().trim().min(2).max(120)),
   rocNumber: optional(z.string().trim().min(3).max(40)),
   rocExpiresOn: optional(isoDate),
-  trainingProvider: optional(z.string().trim().min(2).max(120)),
-  trainingProgramme: optional(z.string().trim().min(2).max(120)),
-  trainingCompletedOn: optional(isoDate),
   medicalExpiresOn: optional(isoDate),
   flightHours: optional(z.number().min(0).max(100_000)),
 });
@@ -54,9 +50,6 @@ const OPTIONAL_COLUMNS = {
   rocHolderName: "roc_holder_name",
   rocNumber: "roc_number",
   rocExpiresOn: "roc_expires_on",
-  trainingProvider: "training_provider",
-  trainingProgramme: "training_programme",
-  trainingCompletedOn: "training_completed_on",
   medicalExpiresOn: "medical_expires_on",
   flightHours: "flight_hours",
 } as const;
@@ -67,18 +60,15 @@ type Profile = {
   province: string | null;
   rplNumber: string | null;
   rplExpiresOn: string | null;
+  licenceTypes: string[];
   rocHolderName: string | null;
   rocNumber: string | null;
   rocExpiresOn: string | null;
-  trainingProvider: string | null;
-  trainingProgramme: string | null;
-  trainingCompletedOn: string | null;
   medicalExpiresOn: string | null;
   flightHours: number | null;
   licenceAttached: boolean;
   rocAttached: boolean;
   medicalCertificateAttached: boolean;
-  trainingCertificateAttached: boolean;
   flightLogAttached: boolean;
 };
 
@@ -89,6 +79,7 @@ function missingForSubmit(p: Profile, today: string) {
   if (!p.services.length) missing.push("at least one service");
   if (!p.province) missing.push("province");
   if (!p.rplNumber) missing.push("licence number");
+  if (!p.licenceTypes.length) missing.push("the aircraft type(s) on your licence");
   if (!p.rplExpiresOn || p.rplExpiresOn <= today) missing.push("a licence expiry date in the future");
   if (!p.licenceAttached) missing.push("licence document");
   if (!p.rocHolderName || !p.rocNumber) missing.push("ROC holder and ROC number");
@@ -98,9 +89,6 @@ function missingForSubmit(p: Profile, today: string) {
   if (!p.medicalCertificateAttached) missing.push("Class 3 medical certificate");
   if (p.flightHours === null) missing.push("total flight hours");
   if (!p.flightLogAttached) missing.push("flight log");
-  if (!p.trainingProvider || !p.trainingProgramme) missing.push("training provider and programme");
-  if (!p.trainingCompletedOn || p.trainingCompletedOn > today) missing.push("training completion date");
-  if (!p.trainingCertificateAttached) missing.push("training certificate");
   return missing;
 }
 
@@ -129,6 +117,10 @@ export function operatorsRouter(db: Db) {
     // Only the fields that were sent are changed (older app versions send just the first three).
     const sets = ["base = $2", "radius_km = $3", "services = $4", "updated_at = now()"];
     const params: unknown[] = [user.id, input.base, input.radiusKm, [...new Set(input.services)]];
+    if (input.licenceTypes) {
+      params.push([...new Set(input.licenceTypes)]);
+      sets.push(`licence_types = $${params.length}`);
+    }
     for (const [key, column] of Object.entries(OPTIONAL_COLUMNS)) {
       const value = input[key as keyof typeof OPTIONAL_COLUMNS];
       if (value === undefined) continue;
@@ -141,6 +133,20 @@ export function operatorsRouter(db: Db) {
       params,
     );
     if (!rows[0]) throw conflict("Your profile is locked while it is in review or approved. Tap Update my details to change it.");
+    response.json(await load(user.id));
+  });
+
+  // Flight hours are checked against the flight log once, at approval; after that the
+  // pilot keeps the number current without another review (user decision, 16 Nov 2026).
+  router.put("/me/flight-hours", async (request, response) => {
+    const { flightHours } = parse(z.object({ flightHours: z.number().min(0).max(100_000) }), request.body);
+    const user = currentUser(request);
+    const { rows } = await db.query(
+      `UPDATE operator_profiles p SET flight_hours = $2, updated_at = now()
+       WHERE p.user_id = $1 AND p.verification_status IN ('not_submitted', 'rejected', 'updating', 'approved') RETURNING p.user_id`,
+      [user.id, flightHours],
+    );
+    if (!rows[0]) throw conflict("Your flight hours can't be changed while your profile is in review.");
     response.json(await load(user.id));
   });
 
@@ -234,7 +240,7 @@ export function adminRouter(db: Db) {
         [admin.id, `verification_${input.decision}`, operatorId, reason],
       );
       if (input.decision === "approved") {
-        await notify(tx, operatorId, "verification", "You're verified", "Your licence, ROC, medical, flight log and training were approved. You can now bid on jobs.");
+        await notify(tx, operatorId, "verification", "You're verified", "Your licence, ROC, medical and flight log were approved. You can now bid on jobs.");
       } else {
         await notify(tx, operatorId, "verification", "Verification not approved", `Reason: ${reason}. Update your profile and submit again.`);
       }

@@ -13,12 +13,10 @@ type Application = {
   rejectionReason: string | null;
   rplNumber: string | null;
   rplExpiresOn: string | null;
+  licenceTypes: string[];
   rocHolderName: string | null;
   rocNumber: string | null;
   rocExpiresOn: string | null;
-  trainingProvider: string | null;
-  trainingProgramme: string | null;
-  trainingCompletedOn: string | null;
   medicalExpiresOn: string | null;
   flightHours: number | null;
   eligibleUntil: string | null;
@@ -26,7 +24,6 @@ type Application = {
   licenceAttached: boolean;
   rocAttached: boolean;
   medicalCertificateAttached: boolean;
-  trainingCertificateAttached: boolean;
   flightLogAttached: boolean;
 };
 
@@ -39,12 +36,11 @@ const FILTERS: { value: Filter; label: string; empty: string }[] = [
   { value: "rejected", label: "Rejected", empty: "No rejected applications." },
 ];
 
-type DocumentKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log";
+type DocumentKind = "licence" | "roc" | "medical_certificate" | "flight_log";
 const DOCUMENTS: { kind: DocumentKind; label: string; attached: (a: Application) => boolean }[] = [
   { kind: "licence", label: "Remote pilot licence", attached: (a) => a.licenceAttached },
   { kind: "roc", label: "ROC proof", attached: (a) => a.rocAttached },
   { kind: "medical_certificate", label: "Class 3 medical certificate", attached: (a) => a.medicalCertificateAttached },
-  { kind: "training_certificate", label: "Training certificate", attached: (a) => a.trainingCertificateAttached },
   { kind: "flight_log", label: "Flight log", attached: (a) => a.flightLogAttached },
 ];
 
@@ -158,13 +154,12 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
       <dl className="details">
         <dt>RPL number</dt><dd>{app.rplNumber ?? "—"}</dd>
         <dt>RPL expires</dt><dd>{dateOrDash(app.rplExpiresOn)}</dd>
+        <dt>Licence type(s)</dt><dd>{app.licenceTypes.length ? app.licenceTypes.join(", ") : "Not given"}</dd>
         <dt>ROC holder</dt><dd>{app.rocHolderName ?? "—"}</dd>
         <dt>ROC number</dt><dd>{app.rocNumber ?? "—"}</dd>
         <dt>ROC expires</dt><dd>{dateOrDash(app.rocExpiresOn)}</dd>
         <dt>Medical expires</dt><dd>{dateOrDash(app.medicalExpiresOn)}</dd>
-        <dt>Flight hours</dt><dd>{app.flightHours ?? "—"}</dd>
-        <dt>Training</dt><dd>{app.trainingProvider ? `${app.trainingProgramme ?? ""}, ${app.trainingProvider}` : "—"}</dd>
-        <dt>Completed</dt><dd>{dateOrDash(app.trainingCompletedOn)}</dd>
+        <dt>Flight hours</dt><dd>{app.flightHours ?? "—"}{app.verificationStatus === "approved" ? " (pilot may update after approval)" : ""}</dd>
       </dl>
 
       <div className="docs">

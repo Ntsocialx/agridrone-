@@ -8,8 +8,8 @@ import type { DeliveryType, Storage } from "../storage";
 
 // Bump when the verification-documents notice text changes; the accepted version is stored.
 // (Kind 'licence_upload' now covers every verification document: licence, ROC proof,
-// Class 3 medical certificate, training certificate and flight log.)
-export const LICENCE_CONSENT_VERSION = "2026-11-13";
+// Class 3 medical certificate and flight log.)
+export const LICENCE_CONSENT_VERSION = "2026-11-16";
 export const MAX_BYTES = 5 * 1024 * 1024;
 const PRIVATE_LINK_SECONDS = 5 * 60;
 
@@ -18,7 +18,6 @@ export const KINDS = {
   roc: { type: "authenticated", formats: ["pdf", "jpg", "png"], folder: "agridrone/roc" },
   // Health information (POPIA special personal information): stored privately like the licence.
   medical_certificate: { type: "authenticated", formats: ["pdf", "jpg", "png"], folder: "agridrone/medical" },
-  training_certificate: { type: "authenticated", formats: ["pdf", "jpg", "png"], folder: "agridrone/training" },
   flight_log: { type: "authenticated", formats: ["pdf", "jpg", "png", "xlsx", "xls", "csv"], folder: "agridrone/flight-logs" },
   portfolio: { type: "upload", formats: ["jpg", "png", "webp"], folder: "agridrone/portfolio" },
   avatar: { type: "upload", formats: ["jpg", "png", "webp"], folder: "agridrone/avatars" },
@@ -26,7 +25,7 @@ export const KINDS = {
 export type Kind = keyof typeof KINDS;
 
 /** Private verification evidence: admin-only, short-lived links, one current file of each per pilot. */
-export const DOCUMENTS = ["licence", "roc", "medical_certificate", "training_certificate", "flight_log"] as const;
+export const DOCUMENTS = ["licence", "roc", "medical_certificate", "flight_log"] as const;
 type Document = (typeof DOCUMENTS)[number];
 
 export const ownFolder = (kind: Kind, userId: string) => `${KINDS[kind].folder}/${userId}/`;
@@ -86,7 +85,7 @@ export function uploadsRouter(db: Db, storage: Storage) {
     response.json({ ...signed, maxBytes: MAX_BYTES });
   });
 
-  // Attach an uploaded licence, ROC proof or training certificate (replacing the old one).
+  // Attach an uploaded verification document (replacing the old one).
   const attachDocument = (kind: Document) => async (request: Request, response: Response) => {
     const { publicId } = parse(z.object({ publicId: z.string().max(200) }), request.body);
     const user = currentUser(request);

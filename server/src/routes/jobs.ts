@@ -18,6 +18,29 @@ export const BIDDABLE_SERVICES = [
 // or assignable until an approved policy and evidence review exist (docs/AGENTS.md).
 export const RESTRICTED_SERVICES: readonly string[] = ["Spraying"];
 export const SERVICES = [...BIDDABLE_SERVICES, "Spraying"] as const;
+type Service = (typeof SERVICES)[number];
+
+// SACAA licence types; pilots only see and bid on jobs their licence type can fly.
+export const LICENCE_TYPES = ["Aeroplane", "Helicopter", "Multi-rotor"] as const;
+const ALL_TYPES = LICENCE_TYPES;
+// Every service takes every licence type for now (user decision, 16 Nov 2026); tighten here.
+export const SERVICE_LICENCE_TYPES: Record<Service, readonly string[]> = {
+  "Crop surveying": ALL_TYPES,
+  Mapping: ALL_TYPES,
+  "Crop monitoring": ALL_TYPES,
+  "Livestock monitoring": ALL_TYPES,
+  "Multispectral imaging": ALL_TYPES,
+  "Infrastructure inspection": ALL_TYPES,
+  Spraying: ALL_TYPES,
+};
+const sqlList = (values: readonly string[]) => `ARRAY[${values.map((v) => `'${v}'`).join(", ")}]::text[]`;
+const jobLicenceTypesSql = () => `CASE j.service ${Object.entries(SERVICE_LICENCE_TYPES)
+  .map(([name, types]) => `WHEN '${name}' THEN ${sqlList(types)}`)
+  .join(" ")} END`;
+// Pilots who haven't said their licence type yet (approved before v3) still see everything.
+const licenceMatchesSql = (pilotParam: string) => `NOT EXISTS (
+  SELECT 1 FROM operator_profiles lp WHERE lp.user_id = ${pilotParam}
+    AND cardinality(lp.licence_types) > 0 AND NOT (lp.licence_types && ${jobLicenceTypesSql()}))`;
 
 // App v2 still sends the names used before migration 008.
 const LEGACY_SERVICES: Record<string, string> = { Surveying: "Crop surveying", Monitoring: "Crop monitoring" };
@@ -90,8 +113,9 @@ export function jobsRouter(db: Db) {
        WHERE j.status IN ('open', 'on_hold') AND o.suspended_at IS NULL
          AND ($1::text IS NULL OR j.service = $1)
          AND ($2::text IS NULL OR j.title ILIKE '%' || $2 || '%' OR j.location ILIKE '%' || $2 || '%')
+         AND ($3::uuid IS NULL OR ${licenceMatchesSql("$3")})
        ORDER BY j.created_at DESC LIMIT 100`,
-      [service ?? null, q || null],
+      [service ?? null, q || null, viewer.role === "operator" ? viewer.id : null],
     );
     response.json(rows);
   });
@@ -153,6 +177,11 @@ export function jobsRouter(db: Db) {
           ? "Your licence, ROC or medical has expired, or your update deadline has passed. Update your details in Profile; you can bid again once an admin approves them."
           : "Your verification must be approved before you can bid.",
       );
+    }
+    const { rows: suited } = await db.query(`SELECT 1 ${JOB_FROM} WHERE j.id = $1 AND ${licenceMatchesSql("$2")}`, [job.id, user.id]);
+    if (!suited.length) {
+      const needed = SERVICE_LICENCE_TYPES[job.service as Service].join(", ");
+      throw forbidden(`This job needs a pilot licensed for: ${needed}.`);
     }
 
     const { rows } = await db.query(

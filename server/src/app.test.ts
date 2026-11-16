@@ -3,6 +3,7 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app";
+import { SERVICE_LICENCE_TYPES } from "./routes/jobs";
 import { hashPassword } from "./auth";
 import type { Db } from "./db";
 import type { Mailer } from "./mailer";
@@ -79,7 +80,7 @@ const JOB = {
 };
 const BID = { amountZar: 4200, days: 3, message: "Can fly early next week." };
 
-const DOCUMENTS = ["licence", "roc", "medical_certificate", "training_certificate", "flight_log"] as const;
+const DOCUMENTS = ["licence", "roc", "medical_certificate", "flight_log"] as const;
 type Document = (typeof DOCUMENTS)[number];
 async function attachDocument(token: string, kind: Document) {
   await as(token).post("/api/v1/operators/me/licence/consent", { accept: true });
@@ -97,12 +98,10 @@ const PROFILE = {
   province: "Western Cape",
   rplNumber: "RPL-12345",
   rplExpiresOn: inDays(365),
+  licenceTypes: ["Multi-rotor"],
   rocHolderName: "Test Drones (Pty) Ltd",
   rocNumber: "ROC-678",
   rocExpiresOn: inDays(300),
-  trainingProvider: "Test Flight School",
-  trainingProgramme: "RPL multirotor course",
-  trainingCompletedOn: inDays(-60),
   // The earliest expiry, so it sets how long an approved pilot can bid.
   medicalExpiresOn: inDays(250),
   flightHours: 52.5,
@@ -259,7 +258,7 @@ describe("operator verification", () => {
     const early = await as(operator.token).post("/api/v1/operators/me/submit");
     expect(early.status).toBe(409);
     expect(early.body.error.message).toContain("ROC proof");
-    expect(early.body.error.message).toContain("training certificate");
+    expect(early.body.error.message).toContain("the aircraft type(s) on your licence");
     expect(early.body.error.message).toContain("province");
     expect(early.body.error.message).toContain("Class 3 medical certificate");
     expect(early.body.error.message).toContain("flight log");
@@ -678,22 +677,21 @@ describe("job violation reports", () => {
   });
 });
 
-describe("credentials, expiry and training (stage 5)", () => {
+describe("credentials and expiry (stage 5)", () => {
   const status = async (token: string) => (await as(token).get("/api/v1/operators/me")).body;
   const titles = async (token: string) => ((await as(token).get("/api/v1/notifications")).body as { title: string }[]).map((n) => n.title);
 
-  it("refuses expiry dates that have passed and training dates in the future", async () => {
+  it("refuses expiry dates that have passed", async () => {
     const operator = await register("operator");
     await completeProfile(operator.token);
-    await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, rocExpiresOn: inDays(-1), trainingCompletedOn: inDays(5) });
+    await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, rocExpiresOn: inDays(-1) });
     const submit = await as(operator.token).post("/api/v1/operators/me/submit");
     expect(submit.status).toBe(409);
     expect(submit.body.error.message).toContain("an ROC expiry date in the future");
-    expect(submit.body.error.message).toContain("training completion date");
     expect((await as(operator.token).put("/api/v1/operators/me", { ...PROFILE, province: "Atlantis" })).status).toBe(400);
   });
 
-  it("keeps ROC proof and training certificates private: consent first, admin-only links, audited", async () => {
+  it("keeps ROC proof and medical certificates private: consent first, admin-only links, audited", async () => {
     const admin = await createAdmin();
     const operator = await register("operator");
     // A consent to the previous notice version doesn't count.
@@ -701,13 +699,13 @@ describe("credentials, expiry and training (stage 5)", () => {
     expect((await as(operator.token).post("/api/v1/operators/me/roc/upload-signature")).status).toBe(403);
 
     expect((await attachDocument(operator.token, "roc")).status).toBe(201);
-    expect((await attachDocument(operator.token, "training_certificate")).status).toBe(201);
-    expect(await status(operator.token)).toMatchObject({ rocAttached: true, trainingCertificateAttached: true, licenceAttached: false });
-    const { rows } = await db.query("SELECT 1 FROM uploads WHERE user_id = $1 AND kind IN ('roc', 'training_certificate') AND url IS NULL", [operator.id]);
+    expect((await attachDocument(operator.token, "medical_certificate")).status).toBe(201);
+    expect(await status(operator.token)).toMatchObject({ rocAttached: true, medicalCertificateAttached: true, licenceAttached: false });
+    const { rows } = await db.query("SELECT 1 FROM uploads WHERE user_id = $1 AND kind IN ('roc', 'medical_certificate') AND url IS NULL", [operator.id]);
     expect(rows).toHaveLength(2);
 
     expect((await as(operator.token).get(`/api/v1/admin/operators/${operator.id}/documents/roc`)).status).toBe(403);
-    for (const kind of ["roc", "training_certificate"]) {
+    for (const kind of ["roc", "medical_certificate"]) {
       const link = await as(admin).get(`/api/v1/admin/operators/${operator.id}/documents/${kind}`);
       expect(link.status).toBe(200);
       expect(link.headers["cache-control"]).toBe("no-store");
@@ -916,5 +914,73 @@ describe("service list (stage 5)", () => {
     const p = await db.query<{ services: string[] }>("SELECT services FROM operator_profiles WHERE user_id = $1", [pilot.id]);
     expect(p.rows[0].services).toEqual(["Crop surveying", "Mapping", "Crop monitoring"]);
     await expect(db.query("UPDATE jobs SET service = 'Surveying' WHERE id = $1", [old.rows[0].id])).rejects.toThrow();
+  });
+});
+
+describe("licence types and flight hours (stage 5)", () => {
+  it("asks pilots for their licence type at sign-up and needs it to submit", async () => {
+    const signUp = (licenceTypes?: string[]) =>
+      request(app).post("/api/v1/auth/register").send({
+        email: `types${++n}@example.test`, password: "password123", fullName: "Type Pilot", phone: "+27 00 000 0000",
+        role: "operator", acceptTerms: true, licenceTypes,
+      });
+    const pilot = await signUp(["Helicopter", "Multi-rotor"]);
+    expect(pilot.status).toBe(201);
+    const me = await as(pilot.body.token).get("/api/v1/operators/me");
+    expect(me.body.licenceTypes).toEqual(["Helicopter", "Multi-rotor"]);
+    expect((await signUp(["Hot-air balloon"])).status).toBe(400);
+
+    // App v2 doesn't send it: sign-up still works, but submitting asks for it.
+    const old = await signUp();
+    expect(old.status).toBe(201);
+    const { licenceTypes: _omit, ...withoutTypes } = PROFILE;
+    await as(old.body.token).put("/api/v1/operators/me", withoutTypes);
+    for (const kind of DOCUMENTS) await attachDocument(old.body.token, kind);
+    const submit = await as(old.body.token).post("/api/v1/operators/me/submit");
+    expect(submit.status).toBe(409);
+    expect(submit.body.error.message).toBe("Add these before submitting: the aircraft type(s) on your licence.");
+  });
+
+  it("only shows and accepts bids on jobs the pilot's licence type can fly", async () => {
+    const admin = await createAdmin();
+    const owner = await register("farm_owner");
+    const pilot = await approvedOperator(admin); // Multi-rotor
+    const job = await as(owner.token).post("/api/v1/jobs", { ...JOB, title: "Powerline corridor inspection", service: "Infrastructure inspection" });
+    const listed = async () => ((await as(pilot.token).get("/api/v1/jobs?q=Powerline")).body as { id: string }[]).map((j) => j.id);
+    expect(await listed()).toContain(job.body.id);
+
+    const saved = SERVICE_LICENCE_TYPES["Infrastructure inspection"];
+    SERVICE_LICENCE_TYPES["Infrastructure inspection"] = ["Aeroplane"];
+    try {
+      expect(await listed()).not.toContain(job.body.id);
+      const bid = await as(pilot.token).post(`/api/v1/jobs/${job.body.id}/bids`, BID);
+      expect(bid.status).toBe(403);
+      expect(bid.body.error.message).toBe("This job needs a pilot licensed for: Aeroplane.");
+      // Pilots approved before licence types existed still see every job until they add theirs.
+      await db.query("UPDATE operator_profiles SET licence_types = '{}' WHERE user_id = $1", [pilot.id]);
+      expect(await listed()).toContain(job.body.id);
+    } finally {
+      SERVICE_LICENCE_TYPES["Infrastructure inspection"] = saved;
+    }
+  });
+
+  it("lets an approved pilot change their flight hours without another review", async () => {
+    const admin = await createAdmin();
+    const pilot = await approvedOperator(admin);
+    const updated = await as(pilot.token).put("/api/v1/operators/me/flight-hours", { flightHours: 80 });
+    expect(updated.status).toBe(200);
+    expect(updated.body).toMatchObject({ flightHours: 80, verificationStatus: "approved", canBid: true });
+    expect((await as(pilot.token).put("/api/v1/operators/me/flight-hours", { flightHours: -1 })).status).toBe(400);
+
+    const reviewing = await register("operator");
+    await completeProfile(reviewing.token);
+    await as(reviewing.token).post("/api/v1/operators/me/submit");
+    expect((await as(reviewing.token).put("/api/v1/operators/me/flight-hours", { flightHours: 80 })).status).toBe(409);
+  });
+
+  it("no longer takes training certificates", async () => {
+    const operator = await register("operator");
+    await as(operator.token).post("/api/v1/operators/me/licence/consent", { accept: true });
+    expect((await as(operator.token).post("/api/v1/operators/me/training_certificate/upload-signature")).status).toBe(400);
   });
 });

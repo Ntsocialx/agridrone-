@@ -2,8 +2,8 @@ import { useState } from "react";
 import { View, Pressable, ScrollView, KeyboardAvoidingView } from "react-native";
 import { Text } from "../components/Text";
 import { router } from "expo-router";
-import { BackHeader, Button, Checkbox, Field, PasswordField } from "../components/ui";
-import { ApiError, api, type User } from "../lib/api";
+import { BackHeader, Button, Checkbox, Chip, Field, PasswordField } from "../components/ui";
+import { ApiError, LICENCE_TYPES, api, type LicenceType, type User } from "../lib/api";
 import { celebrate, oops } from "../lib/feedback";
 import { useSession } from "../lib/session";
 
@@ -16,6 +16,8 @@ const ROLES: { value: Role; label: string; hint: string }[] = [
 export default function RegisterScreen() {
   const { signIn } = useSession();
   const [role, setRole] = useState<Role>("operator");
+  const [licenceTypes, setLicenceTypes] = useState<LicenceType[]>([]);
+  const toggleType = (t: LicenceType) => setLicenceTypes((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "", password: "", confirm: "" });
@@ -29,6 +31,7 @@ export default function RegisterScreen() {
     email: /^\S+@\S+\.\S+$/.test(form.email.trim()) ? undefined : "Enter a valid email address",
     password: form.password.length < 8 ? "At least 8 characters" : undefined,
     confirm: form.confirm !== form.password ? "Passwords don't match" : undefined,
+    licenceTypes: role === "operator" && !licenceTypes.length ? "Choose at least one" : undefined,
   };
   const valid = Object.values(errors).every((e) => !e) && accepted;
   const show = (key: keyof typeof errors) => (submitted ? errors[key] : undefined);
@@ -41,7 +44,7 @@ export default function RegisterScreen() {
     setServerError(null);
     try {
       const { token, user } = await api<{ token: string; user: User }>("/auth/register", {
-        body: { email: form.email.trim(), password: form.password, fullName: form.name.trim(), phone: form.phone.trim(), role, acceptTerms: true },
+        body: { email: form.email.trim(), password: form.password, fullName: form.name.trim(), phone: form.phone.trim(), role, acceptTerms: true, ...(role === "operator" ? { licenceTypes } : {}) },
       });
       await signIn(token, user);
       celebrate("Account created");
@@ -76,6 +79,19 @@ export default function RegisterScreen() {
             );
           })}
         </View>
+
+        {role === "operator" ? (
+          <View className="mb-8">
+            <Text className="text-ink font-bold mb-1 text-base">What does your licence cover?</Text>
+            <Text className="text-muted text-xs mb-3">The aircraft type(s) on your SACAA Remote Pilot Licence. We match you to jobs that suit them.</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {LICENCE_TYPES.map((t) => (
+                <Chip key={t} label={t} active={licenceTypes.includes(t)} onPress={() => toggleType(t)} />
+              ))}
+            </View>
+            {show("licenceTypes") ? <Text className="text-danger text-xs mt-2 ml-1">{show("licenceTypes")}</Text> : null}
+          </View>
+        ) : null}
 
         <View className="gap-y-5 mb-6">
           <Field label="Full name" placeholder="Enter your full name" value={form.name} onChangeText={set("name")} error={show("name")} autoComplete="name" />

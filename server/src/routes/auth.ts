@@ -2,6 +2,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
+import { LICENCE_TYPES } from "./jobs";
 import { checkPassword, hashPassword, signToken, suspendedError } from "../auth";
 import type { Db } from "../db";
 import { HttpError, parse } from "../http";
@@ -17,6 +18,9 @@ export const registerSchema = z.object({
   phone: z.string().trim().regex(/^\+?\d[\d ]{8,14}$/),
   // Admins are provisioned by script, never through public registration.
   role: z.enum(["operator", "farm_owner"]),
+  // Pilots' licence type(s), asked at sign-up so they're matched to suitable jobs.
+  // Optional so app v2 can still register; submitting for verification needs it.
+  licenceTypes: z.array(z.enum(LICENCE_TYPES)).min(1).max(LICENCE_TYPES.length).optional(),
   acceptTerms: z.literal(true),
 });
 
@@ -47,7 +51,9 @@ export function authRouter(db: Db, jwtSecret: string, mailer: Mailer | null, rat
       );
       const id = rows[0].id;
       await tx.query("INSERT INTO consents (user_id, kind, version) VALUES ($1, 'terms_privacy', $2)", [id, TERMS_VERSION]);
-      if (input.role === "operator") await tx.query("INSERT INTO operator_profiles (user_id) VALUES ($1)", [id]);
+      if (input.role === "operator") {
+        await tx.query("INSERT INTO operator_profiles (user_id, licence_types) VALUES ($1, $2)", [id, [...new Set(input.licenceTypes ?? [])]]);
+      }
       return { id, role: input.role, fullName: input.fullName };
     });
 

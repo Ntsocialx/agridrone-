@@ -14,7 +14,8 @@ signed off yet. Reviewer(s): *to be named by the mentor / AgriSETA*.
 - [ ] Confirm the operator certificate's current name (ROC or UASOC) and whether pilots may fly under an employer's certificate
 - [ ] Confirm the Remote Pilot Licence validity and renewal rules (for expiry reminders)
 - [ ] Confirm the medical class (Class 3) and validity period required for remote pilots
-- [ ] Confirm what a flight log must contain under Part 101, and whether total hours should be checked
+- [ ] Confirm what a flight log must contain under Part 101, and that checking the hours once at approval (then self-updated) is enough
+- [ ] Confirm the licence types (Aeroplane, Helicopter, Multi-rotor) and whether any service needs a specific type, UAS class (SA-CATS 101) or rating (gap G8)
 - [ ] Decide whether aircraft registration and the UAS Letter of Authority/Approval must be checked per pilot (gap G1)
 - [ ] Confirm whether an Air Services Licence is needed, and by whom (gap G2)
 - [ ] Decide what jobs must declare about aerodromes and controlled/restricted airspace (gap G3)

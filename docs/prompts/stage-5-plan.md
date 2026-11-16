@@ -1,6 +1,6 @@
 # Stage 5 Plan — From training to earning (compliance, services, training records, impact report)
 
-**Status:** Approved 13 November 2026 ("yes"). Phase 1 built on `dev` (13 Nov): server, app, admin site, legal drafts. Phase 2 (service list, migration 008) built on `dev` (13 Nov); 53 server tests pass. Not live until migrations 007 and 008 are run on Neon and `dev` is merged, together with APK v3. Phases 3–4 not started.
+**Status:** Approved 13 November 2026; changed 16 November 2026 (see *Changes after consultation*) ("yes"). Phase 1 built on `dev` (13 Nov): server, app, admin site, legal drafts. Phase 2 (service list, migration 008) built on `dev` (13 Nov); 53 server tests pass. Not live until migrations 007 and 008 are run on Neon and `dev` is merged, together with APK v3. Phases 3–4 not started.
 **Source:** Concept brief §5.15 "AgriDrone Hub — from training to earning" (AgriSETA 4IR skills priorities), and the decisions below.
 **Depends on:** Stage 4 system (live API on Render, Neon migrations 001–006, mobile app v2.0.0, admin website on Vercel).
 
@@ -118,6 +118,17 @@ outcome through AgriImpact. The marketplace already works; what's missing is (1)
 1. **Existing approved pilots:** notified when the rules go live and can keep bidding for **30 days** while they add the ROC, expiry dates, training record and province; after that they're blocked until they complete them and an admin re-approves.
 2. **Photos for the three new services:** reuse the existing verified drone photos for now.
 3. **Training providers:** free text (provider and programme names); admins check them against the certificate; the report groups by the typed names.
+
+## Changes after consultation (16 November 2026)
+
+These replace the earlier decisions where they differ:
+
+- **Training removed completely:** no training provider, programme, date or certificate, and the Impact report won't group by training programme.
+- **Flight experience:** the pilot uploads their logbook and enters total hours; the admin compares them before approval. After approval the pilot can change the hours alone (`PUT /operators/me/flight-hours`), with no new log or review.
+- **Pilot classes = SACAA licence types:** Aeroplane RPL(A), Helicopter RPL(H), Multi-rotor RPL(MR). Pilots pick one or more at sign-up (optional on the server so app v2 can still register; required to submit). An admin checks them against the licence; changing them after approval goes through "Update my details" and review.
+- **Matching:** each service lists the licence types that can do it (`SERVICE_LICENCE_TYPES` in `server/src/routes/jobs.ts`); pilots only see and bid on suitable jobs. For now every service accepts all three types. Pilots without a licence type (approved before v3) see everything until they add it.
+- Weight classes (SA-CATS 101) are not captured; see compliance gap G8.
+- These were folded into migration `007_credentials.sql`, which has not been run on Neon yet.
 
 ## Risks
 

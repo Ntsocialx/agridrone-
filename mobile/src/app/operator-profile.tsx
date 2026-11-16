@@ -12,6 +12,7 @@ import { ProvincePicker } from "../components/ProvincePicker";
 import { BackHeader, BottomNav, Button, Checkbox, Chip, ErrorState, Field, Loading, SignOutButton } from "../components/ui";
 import {
   ApiError,
+  LICENCE_TYPES,
   SERVICES,
   api,
   formatDate,
@@ -19,6 +20,7 @@ import {
   uploadFile,
   type OperatorProfile,
   type PickedFile,
+  type LicenceType,
   type PilotProfile,
   type Province,
   type Service,
@@ -33,12 +35,11 @@ const tooBig = () => new ApiError("That file is over 5 MB. Choose a smaller one.
 
 const TONE = { ok: "bg-teal-soft", warn: "bg-sun/15", danger: "bg-danger/10" };
 
-type DocumentKind = "licence" | "roc" | "medical_certificate" | "training_certificate" | "flight_log";
+type DocumentKind = "licence" | "roc" | "medical_certificate" | "flight_log";
 const DOCUMENT_COPY: Record<DocumentKind, { title: string; hint: string; done: string; spreadsheets?: boolean }> = {
   licence: { title: "Remote pilot licence", hint: "Your SACAA RPL", done: "Licence uploaded" },
   roc: { title: "ROC proof", hint: "The ROC certificate, or a letter from the ROC holder you fly for", done: "ROC proof uploaded" },
   medical_certificate: { title: "Class 3 medical certificate", hint: "Your current Class 3 medical", done: "Medical certificate uploaded" },
-  training_certificate: { title: "Training certificate", hint: "Your course completion certificate", done: "Certificate uploaded" },
   flight_log: { title: "Flight log", hint: "Your logbook", done: "Flight log uploaded", spreadsheets: true },
 };
 
@@ -54,6 +55,7 @@ const SPREADSHEET_TYPES = [
 /** Dates are typed as YYYY-MM-DD (the same as Post a job). */
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 const today = () => new Date().toISOString().slice(0, 10);
+const validHours = (s: string) => s.trim() !== "" && Number(s) >= 0 && Number(s) <= 100_000;
 
 async function pickPhoto(): Promise<PickedFile | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -103,17 +105,15 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     rocHolderName: p.rocHolderName ?? "",
     rocNumber: p.rocNumber ?? "",
     rocExpiresOn: p.rocExpiresOn ?? "",
-    trainingProvider: p.trainingProvider ?? "",
-    trainingProgramme: p.trainingProgramme ?? "",
-    trainingCompletedOn: p.trainingCompletedOn ?? "",
     medicalExpiresOn: p.medicalExpiresOn ?? "",
     flightHours: p.flightHours === null ? "" : String(p.flightHours),
   });
   const [services, setServices] = useState<Service[]>(p.services);
+  const [licenceTypes, setLicenceTypes] = useState<LicenceType[]>(p.licenceTypes);
   const [province, setProvince] = useState<Province | null>(p.province);
   const [uploadConsent, setUploadConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [busy, setBusy] = useState<null | DocumentKind | "photo" | "submit" | "save" | "update">(null);
+  const [busy, setBusy] = useState<null | DocumentKind | "photo" | "submit" | "save" | "update" | "hours">(null);
   const [error, setError] = useState<string | null>(null);
 
   const status = p.verificationStatus;
@@ -121,6 +121,9 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
   const standing = pilotStanding(p);
   const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
   const toggle = (s: Service) => setServices((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
+  const toggleType = (t: LicenceType) => setLicenceTypes((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
+  // Hours are checked against the flight log at approval; after that the pilot keeps them current alone.
+  const hoursEditable = !locked || status === "approved";
 
   const futureDate = (s: string, what: string) => (isDate(s) && s > today() ? undefined : `Enter the ${what} as YYYY-MM-DD (a future date)`);
   // The service details are enough to save; everything is needed to submit.
@@ -134,22 +137,15 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     province: province ? undefined : "Choose your province",
     rplNumber: form.rplNumber.trim().length >= 3 ? undefined : "Enter your licence number",
     rplExpiresOn: futureDate(form.rplExpiresOn, "licence expiry date"),
+    licenceTypes: licenceTypes.length ? undefined : "Choose the aircraft type(s) on your licence",
     licence: p.licenceAttached ? undefined : "Upload your remote pilot licence",
     rocHolderName: form.rocHolderName.trim().length >= 2 ? undefined : "Enter the ROC holder's name",
     rocNumber: form.rocNumber.trim().length >= 3 ? undefined : "Enter the ROC number",
     rocExpiresOn: futureDate(form.rocExpiresOn, "ROC expiry date"),
     roc: p.rocAttached ? undefined : "Upload proof of the ROC",
-    trainingProvider: form.trainingProvider.trim().length >= 2 ? undefined : "Enter your training provider",
-    trainingProgramme: form.trainingProgramme.trim().length >= 2 ? undefined : "Enter the programme or course",
-    trainingCompletedOn:
-      isDate(form.trainingCompletedOn) && form.trainingCompletedOn <= today() ? undefined : "Enter the completion date as YYYY-MM-DD",
-    training_certificate: p.trainingCertificateAttached ? undefined : "Upload your training certificate",
     medicalExpiresOn: futureDate(form.medicalExpiresOn, "medical expiry date"),
     medical_certificate: p.medicalCertificateAttached ? undefined : "Upload your Class 3 medical certificate",
-    flightHours:
-      form.flightHours.trim() !== "" && Number(form.flightHours) >= 0 && Number(form.flightHours) <= 100_000
-        ? undefined
-        : "Enter your total flight hours (e.g. 52.5)",
+    flightHours: validHours(form.flightHours) ? undefined : "Enter your total flight hours (e.g. 52.5)",
     flight_log: p.flightLogAttached ? undefined : "Upload your flight log",
   };
   const show = (key: keyof typeof errors) => (submitted ? errors[key] : undefined);
@@ -178,12 +174,10 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         province,
         rplNumber: optional(form.rplNumber),
         rplExpiresOn: isDate(form.rplExpiresOn) ? form.rplExpiresOn : null,
+        licenceTypes: licenceTypes.length ? licenceTypes : undefined,
         rocHolderName: optional(form.rocHolderName),
         rocNumber: optional(form.rocNumber),
         rocExpiresOn: isDate(form.rocExpiresOn) ? form.rocExpiresOn : null,
-        trainingProvider: optional(form.trainingProvider),
-        trainingProgramme: optional(form.trainingProgramme),
-        trainingCompletedOn: isDate(form.trainingCompletedOn) ? form.trainingCompletedOn : null,
         medicalExpiresOn: isDate(form.medicalExpiresOn) ? form.medicalExpiresOn : null,
         flightHours: form.flightHours.trim() !== "" && !Number.isNaN(Number(form.flightHours)) ? Number(form.flightHours) : null,
       },
@@ -261,6 +255,20 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     });
   };
 
+  const [hoursError, setHoursError] = useState<string | null>(null);
+  const saveHours = () => {
+    if (!validHours(form.flightHours)) {
+      setHoursError("Enter your total flight hours (e.g. 52.5)");
+      return oops();
+    }
+    setHoursError(null);
+    void run("hours", async () => {
+      await api("/operators/me/flight-hours", { method: "PUT", body: { flightHours: Number(form.flightHours) } });
+      await reload();
+      celebrate("Flight hours saved");
+    });
+  };
+
   const startUpdate = () =>
     run("update", async () => {
       await api("/operators/me/update", { method: "POST" });
@@ -330,7 +338,7 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
               <View className="mt-4">
                 <Button label="Update my details" variant="outline" busy={busy === "update"} disabled={busy !== null && busy !== "update"} onPress={startUpdate} />
                 <Text className="text-muted text-xs mt-2">
-                  For a renewed licence or ROC, or new training. {p.canBid ? "You can keep bidding while an admin checks the update." : ""}
+                  For a renewed licence, ROC or medical, or another licence type. {p.canBid ? "You can keep bidding while an admin checks the update." : ""}
                 </Text>
               </View>
             ) : null}
@@ -357,8 +365,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         <View className="bg-page p-4 rounded-md mb-4">
           <Text className="text-muted text-xs leading-5">
             Commercial drone work in South Africa needs a SACAA Remote Pilot Licence, a current Class 3 medical and operation
-            under a Remote Operating Certificate (ROC). We collect your licence, ROC proof, medical certificate, training
-            certificate and flight log only to check you can be listed as an operator. Your medical certificate is health
+            under a Remote Operating Certificate (ROC). We collect your licence, ROC proof, medical certificate and flight log
+            only to check you can be listed as an operator. Your medical certificate is health
             information: we only use it to confirm it is current. All of them are stored privately and only authorised
             AgricDrone Hub admins can view them, through links that expire after 5 minutes. You can ask us to access, correct
             or delete them at any time.
@@ -367,8 +375,8 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         {!locked ? (
           <View className="mb-6">
             <Checkbox checked={uploadConsent} onChange={setUploadConsent}>
-              I consent to AgricDrone Hub storing and reviewing my licence, ROC proof, Class 3 medical certificate, training
-              certificate and flight log for operator verification.
+              I consent to AgricDrone Hub storing and reviewing my licence, ROC proof, Class 3 medical certificate and flight
+              log for operator verification.
             </Checkbox>
           </View>
         ) : null}
@@ -377,6 +385,16 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         <View className="gap-y-5 mb-4">
           <Field label="Licence number" placeholder="As printed on your licence" value={form.rplNumber} onChangeText={set("rplNumber")} editable={!locked} autoCapitalize="characters" error={show("rplNumber")} />
           <Field label="Licence expiry date" placeholder="YYYY-MM-DD" value={form.rplExpiresOn} onChangeText={set("rplExpiresOn")} editable={!locked} keyboardType="numbers-and-punctuation" error={show("rplExpiresOn")} />
+          <View>
+            <Text className="text-ink text-sm font-medium mb-2">Aircraft type(s) on your licence</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {LICENCE_TYPES.map((t) => (
+                <Chip key={t} label={t} active={licenceTypes.includes(t)} onPress={() => !locked && toggleType(t)} />
+              ))}
+            </View>
+            <Text className="text-muted text-xs ml-1 mt-1">You will see jobs that suit these aircraft.</Text>
+            {show("licenceTypes") ? <Text className="text-danger text-xs ml-1">{show("licenceTypes")}</Text> : null}
+          </View>
         </View>
         {documentRow("licence", p.licenceAttached)}
 
@@ -396,19 +414,16 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
         </View>
         {documentRow("medical_certificate", p.medicalCertificateAttached)}
 
-        <Text className="text-ink font-bold mt-8 mb-1">Training</Text>
-        <Text className="text-muted text-xs mb-3">Where you trained as a drone pilot. Only admins see this.</Text>
-        <View className="gap-y-5 mb-4">
-          <Field label="Training provider" placeholder="e.g. the flight school's name" value={form.trainingProvider} onChangeText={set("trainingProvider")} editable={!locked} error={show("trainingProvider")} />
-          <Field label="Programme or course" placeholder="e.g. RPL multirotor course" value={form.trainingProgramme} onChangeText={set("trainingProgramme")} editable={!locked} error={show("trainingProgramme")} />
-          <Field label="Completion date" placeholder="YYYY-MM-DD" value={form.trainingCompletedOn} onChangeText={set("trainingCompletedOn")} editable={!locked} keyboardType="numbers-and-punctuation" error={show("trainingCompletedOn")} />
-        </View>
-        {documentRow("training_certificate", p.trainingCertificateAttached)}
-
         <Text className="text-ink font-bold mt-8 mb-1">Flight experience</Text>
         <Text className="text-muted text-xs mb-3">Your total flying time and logbook. Only admins see them.</Text>
         <View className="gap-y-5 mb-4">
-          <Field label="Total flight hours" placeholder="e.g. 52.5" value={form.flightHours} onChangeText={set("flightHours")} editable={!locked} keyboardType="decimal-pad" error={show("flightHours")} />
+          <Field label="Total flight hours" placeholder="e.g. 52.5" value={form.flightHours} onChangeText={set("flightHours")} editable={hoursEditable} keyboardType="decimal-pad" error={show("flightHours") ?? hoursError ?? undefined} />
+          {status === "approved" ? (
+            <View>
+              <Button label="Save flight hours" variant="outline" onPress={saveHours} busy={busy === "hours"} disabled={busy !== null && busy !== "hours"} />
+              <Text className="text-muted text-xs mt-2">Your logbook was checked at approval. Keep your hours up to date here; no new review is needed.</Text>
+            </View>
+          ) : null}
         </View>
         {documentRow("flight_log", p.flightLogAttached)}
 
