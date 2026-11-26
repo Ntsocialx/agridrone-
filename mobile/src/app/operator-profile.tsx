@@ -106,10 +106,10 @@ function ProfileForm({ p, reload }: { p: OperatorProfile; reload: () => Promise<
     rocNumber: p.rocNumber ?? "",
     rocExpiresOn: p.rocExpiresOn ?? "",
     medicalExpiresOn: p.medicalExpiresOn ?? "",
-    flightHours: p.flightHours === null ? "" : String(p.flightHours),
+    flightHours: p.flightHours == null ? "" : String(p.flightHours),
   });
   const [services, setServices] = useState<Service[]>(p.services);
-  const [licenceTypes, setLicenceTypes] = useState<LicenceType[]>(p.licenceTypes);
+  const [licenceTypes, setLicenceTypes] = useState<LicenceType[]>(p.licenceTypes ?? []);
   const [province, setProvince] = useState<Province | null>(p.province);
   const [uploadConsent, setUploadConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);

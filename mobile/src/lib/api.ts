@@ -105,7 +105,8 @@ export type OperatorProfile = {
   rejectionReason: string | null;
   rplNumber: string | null;
   rplExpiresOn: string | null;
-  licenceTypes: LicenceType[];
+  /** Missing from servers older than Stage 5. */
+  licenceTypes?: LicenceType[];
   rocHolderName: string | null;
   rocNumber: string | null;
   rocExpiresOn: string | null;
@@ -248,12 +249,14 @@ export function wakeServer() {
   fetch(API_URL + "/health").catch(() => {});
 }
 
+const CANT_REACH = "Can't reach AgricDrone Hub. Check your connection and try again.";
+
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   if (offline) throw new ApiError(OFFLINE_MESSAGE, 0);
-  let response: Response;
-  try {
-    response = await trackSlow(fetch(API_URL + path, {
-      method: options.method ?? (options.body ? "POST" : "GET"),
+  const method = options.method ?? (options.body ? "POST" : "GET");
+  const send = () =>
+    trackSlow(fetch(API_URL + path, {
+      method,
       headers: {
         Accept: "application/json",
         ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -261,8 +264,18 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
     }));
+  let response: Response;
+  try {
+    response = await send();
   } catch {
-    throw new ApiError(offline ? OFFLINE_MESSAGE : "Can't reach AgricDrone Hub. Check your connection and try again.", 0);
+    // A dropped connection on a read is retried once; writes aren't, so nothing is sent twice.
+    if (offline || method !== "GET") throw new ApiError(offline ? OFFLINE_MESSAGE : CANT_REACH, 0);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      response = await send();
+    } catch {
+      throw new ApiError(offline ? OFFLINE_MESSAGE : CANT_REACH, 0);
+    }
   }
 
   if (response.status === 204) return undefined as T;

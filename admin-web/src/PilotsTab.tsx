@@ -154,7 +154,7 @@ function ApplicationCard({ app, onDecided }: { app: Application; onDecided: () =
       <dl className="details">
         <dt>RPL number</dt><dd>{app.rplNumber ?? "—"}</dd>
         <dt>RPL expires</dt><dd>{dateOrDash(app.rplExpiresOn)}</dd>
-        <dt>Licence type(s)</dt><dd>{app.licenceTypes.length ? app.licenceTypes.join(", ") : "Not given"}</dd>
+        <dt>Licence type(s)</dt><dd>{app.licenceTypes?.length ? app.licenceTypes.join(", ") : "Not given"}</dd>
         <dt>ROC holder</dt><dd>{app.rocHolderName ?? "—"}</dd>
         <dt>ROC number</dt><dd>{app.rocNumber ?? "—"}</dd>
         <dt>ROC expires</dt><dd>{dateOrDash(app.rocExpiresOn)}</dd>
